@@ -6,10 +6,9 @@ description = "A library for performing geometric calculations on the WGS84 elli
 repository = "https://github.com/kenba/icao-wgs84-rs"
 readme = "README.md"
 keywords = ["geometry", "ellipsoid", "wgs84", "icao", "navigation"]
-categories = ["aerospace", "mathematics", "no-std"]
+categories = ["aerospace", "mathematics", "no-std", "science"]
 license = "MIT"
 edition = "2021"
-publish = false
 
 [dependencies]
 angle-sc = "0.1"
