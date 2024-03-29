@@ -2,7 +2,7 @@
 
 [![License](https://img.shields.io/badge/License-MIT-blue)](https://opensource.org/license/mit/)
 [![Rust](https://github.com/kenba/icao-wgs84-rs/actions/workflows/rust.yml/badge.svg)](https://github.com/kenba/icao-wgs84-rs/actions)
-[![codecov](https://codecov.io/gh/kenba/icao-wgs84-rs/graph/badge.svg?token=G1H1XINERW)](https://codecov.io/gh/kenba/icao-wgs84-rs)
+[![codecov](https://codecov.io/gh/kenba/icao-wgs84-rs/graph/badge.svg?token=85TJX5VAHF)](https://codecov.io/gh/kenba/icao-wgs84-rs)
 
 A library for performing geometric calculations on the
 [WGS84](https://en.wikipedia.org/wiki/World_Geodetic_System) ellipsoid,
@@ -51,7 +51,7 @@ by using vectors to solve geodesic intersection and point-to-line problems on
 the auxiliary sphere.
 
 This library uses the correspondence between geodesics on an ellipsoid
-and great-circles on the auxiliary sphere and 3D vectors to calculate:
+and great-circles on the auxiliary sphere together with 3D vectors to calculate:
 
 - the initial azimuth and length of a geodesic between two positions;
 - the along track distance and across track distance of a position relative to a geodesic;
@@ -107,7 +107,7 @@ let wgs84_ellipsoid = Ellipsoid::wgs84();
 
 let istanbul = LatLong::new(Degrees(42.0), Degrees(29.0));
 let washington = LatLong::new(Degrees(39.0), Degrees(-77.0));
-let g1 = Geodesic::from((&istanbul, &washington, &wgs84_ellipsoid));
+let g1 = Geodesic::between_positions(&istanbul, &washington, &wgs84_ellipsoid);
 
 let azimuth_degrees = Degrees::from(g1.azimuth(Metres(0.0)));
 println!("Istanbul-Washington initial azimuth: {:?}", azimuth_degrees.0);
