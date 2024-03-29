@@ -1,8 +1,10 @@
 [package]
 name = "icao-wgs84"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["Ken Barker <ken.barker@via-technology.aero>"]
 description = "A library for performing geometric calculations on the WGS84 ellipsoid."
+documentation = "https://docs.rs/icao-wgs84/"
+homepage = "https://github.com/kenba/icao-wgs84-rs"
 repository = "https://github.com/kenba/icao-wgs84-rs"
 readme = "README.md"
 keywords = ["geometry", "ellipsoid", "wgs84", "icao", "navigation"]
