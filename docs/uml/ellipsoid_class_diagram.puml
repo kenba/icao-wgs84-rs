@@ -1,0 +1,76 @@
+@startuml
+
+'Copyright (c) 2024 Via Technology Ltd. All Rights Reserved.
+
+' title Ellipsoid Class Diagram
+
+set namespaceSeparator ::
+
+    namespace icao_wgs84 {
+        namespace geodesic {
+        }
+
+        class Geodesic {
+            - beta
+            - lon
+            - azi
+            - aux_length
+            - ellipsoid
+            + lat_long()
+            + calculate_atd_and_xtd()
+        }
+
+        namespace ellipsoid {
+            namespace coefficients {
+            }
+        }
+
+        class Ellipsoid {
+            - a
+            - f
+            + b()
+            + one_minus_f()
+            + calculate_parametric_latitude()
+            + calculate_geodetic_latitude()
+        }
+
+        Geodesic o-- Ellipsoid
+        Geodesic . geodesic::functions
+        Ellipsoid . ellipsoid::functions
+        Ellipsoid .. ellipsoid::wgs84
+    }
+
+    namespace unit_sphere {
+        class LatLong {
+            - lat
+            - lon
+        }
+    }
+
+    namespace angle_sc {
+        
+        class Angle {
+            - sin
+            - cos
+        }
+
+        Angle . Degrees
+        ' Angle .. Radians
+    }
+
+    namespace icao_units {
+        namespace non_si {
+            class NauticalMiles {
+
+            }
+        }
+    }
+
+    icao_wgs84::Geodesic . unit_sphere::LatLong
+    icao_wgs84::Geodesic *-- angle_sc::Angle
+    icao_wgs84::Geodesic .. angle_sc::Degrees
+    icao_wgs84::Geodesic *-- angle_sc::Radians
+    icao_wgs84::Geodesic .. icao_units::Metres
+    icao_wgs84::Ellipsoid *--icao_units::Metres
+    unit_sphere::LatLong *-- "2" angle_sc::Degrees
+@enduml
