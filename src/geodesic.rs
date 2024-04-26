@@ -32,11 +32,7 @@ use crate::ellipsoid::{calculate_epsilon, calculate_parametric_latitude, Metres}
 use crate::Ellipsoid;
 use angle_sc::trig::{cosine_from_sine, UnitNegRange};
 use angle_sc::{is_small, Angle, Radians};
-use unit_sphere::great_circle;
-use unit_sphere::LatLong;
-
-/// The maximum precision, in Radians.
-pub const MAX_PRECISION: Radians = Radians(2.0 * core::f64::EPSILON);
+use unit_sphere::{great_circle, LatLong};
 
 /// Estimate omega12 by solving the astroid problem.
 /// Solve k^4+2*k^3-(x^2+y^2-1)*k^2-2*y^2*k-y^2 = 0 for positive root k.
@@ -259,9 +255,11 @@ fn find_azimuth_and_aux_length(
     gc_length: Radians,
     ellipsoid: &Ellipsoid,
 ) -> (Angle, Radians) {
+    /// The maximum precision, in Radians.
+    const MAX_PRECISION: Radians = Radians(great_circle::MIN_VALUE);
+
     // The maximum number of iterations to attempt.
     const MAX_ITERS: u32 = 20;
-    let antipodal_arc_threshold: f64 = core::f64::consts::PI * ellipsoid.one_minus_f();
 
     // Start at the latitude furthest from the Equator
     let swap_latitudes = libm::fabs(lat_a.sin().0) < libm::fabs(lat_b.sin().0);
@@ -286,6 +284,7 @@ fn find_azimuth_and_aux_length(
     let abs_lambda12 = lambda12.abs();
 
     // Estimate the azimuth at the start of the geodesic
+    let antipodal_arc_threshold: f64 = core::f64::consts::PI * ellipsoid.one_minus_f();
     let mut alpha1 = if antipodal_arc_threshold < gc_length.0 {
         estimate_antipodal_initial_azimuth(beta1, beta2, abs_lambda12, ellipsoid)
     } else {
@@ -396,41 +395,31 @@ pub fn aux_sphere_azimuth_length(
     delta_long: Angle,
     ellipsoid: &Ellipsoid,
 ) -> (Angle, Radians) {
-    const MIN_VALUE: UnitNegRange = UnitNegRange(2.0 * core::f64::EPSILON);
-    const MAX_LENGTH: Radians = Radians(core::f64::consts::PI - 2.0 * MIN_VALUE.0);
-
+    // Determine whether on a meridian, i.e. a great circle which passes through the North and South poles
     let gc_azimuth = great_circle::calculate_gc_azimuth(lat1, lat2, delta_long);
-    let gc_length = great_circle::calculate_gc_distance(lat1, lat2, delta_long);
-    // Ensure that the points are far enough apart
-    if gc_length.0 <= MIN_VALUE.0 {
-        return (gc_azimuth, Radians(0.0));
-    }
-
-    // Determine whether a meridional path
-    let abs_delta_long = Radians::from(delta_long.abs());
-    if (abs_delta_long.0 <= MIN_VALUE.0)
-        || (MAX_LENGTH <= abs_delta_long)
-        || (lat1.cos() <= MIN_VALUE)
-        || (lat2.cos() <= MIN_VALUE)
-    {
-        let meridian_length = if MAX_LENGTH <= gc_length {
-            Radians(core::f64::consts::PI)
+    // gc_azimuth is 0° or 180°
+    if is_small(gc_azimuth.abs().sin().0, great_circle::MIN_VALUE) {
+        // Calculate the meridian distance on the auxillary sphere
+        let beta1 = calculate_parametric_latitude(lat1, ellipsoid.one_minus_f());
+        let beta2 = calculate_parametric_latitude(lat2, ellipsoid.one_minus_f());
+        let meridian_length = great_circle::calculate_gc_distance(beta1, beta2, delta_long);
+        (gc_azimuth, meridian_length)
+    } else {
+        // Determine whether on an equatorial path, i.e. the circle around the equator.
+        let gc_length = great_circle::calculate_gc_distance(lat1, lat2, delta_long);
+        // gc_azimuth is +/-90° and both latitudes are very close to the equator
+        if is_small(gc_azimuth.cos().0, great_circle::MIN_VALUE)
+            && is_small(lat1.abs().sin().0, core::f64::EPSILON)
+            && is_small(lat2.abs().sin().0, core::f64::EPSILON)
+        {
+            // Calculate the distance around the equator on the auxillary sphere
+            let equatorial_length = Radians(gc_length.0 * ellipsoid.recip_one_minus_f());
+            (gc_azimuth, equatorial_length)
         } else {
-            let beta1 = calculate_parametric_latitude(lat1, ellipsoid.one_minus_f());
-            let beta2 = calculate_parametric_latitude(lat2, ellipsoid.one_minus_f());
-            great_circle::calculate_gc_distance(beta1, beta2, delta_long)
-        };
-        return (gc_azimuth, meridian_length);
+            // Iterate to find the azimuth and length on the auxillary sphere
+            find_azimuth_and_aux_length(lat1, lat2, delta_long, gc_length, ellipsoid)
+        }
     }
-
-    // Determine whether an equitorial path, i.e. both latitudes on the equator.
-    if (lat1.abs().sin() <= MIN_VALUE) && (lat2.abs().sin() <= MIN_VALUE) {
-        let equator_length = Radians(gc_length.0 * ellipsoid.recip_one_minus_f());
-        return (gc_azimuth, equator_length);
-    }
-
-    // Iterate using Newton's method to find the azimuth and length
-    find_azimuth_and_aux_length(lat1, lat2, delta_long, gc_length, ellipsoid)
 }
 
 /// Calculate the geodesic azimuth and great circle length on the auxiliary sphere
@@ -606,6 +595,7 @@ mod tests {
         assert_eq!(0.0, Degrees::from(result.0).0);
         assert_eq!(0.3502163200513691, (result.1).0);
     }
+
     #[test]
     fn test_calculate_azimuth_aux_length_equator() {
         let wgs84_ellipsoid = Ellipsoid::wgs84();
