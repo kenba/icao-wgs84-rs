@@ -34,12 +34,11 @@ pub use icao_units::si::Metres;
 /// * `f` - the flattening ratio.
 /// # Examples
 /// ```
-/// use icao_wgs84::ellipsoid::wgs84::{A, F};
-/// use icao_wgs84::ellipsoid::{Metres, calculate_minor_axis};
+/// use icao_wgs84::ellipsoid::{Metres, calculate_minor_axis, wgs84};
 ///
 /// // The WGS 84 Semiminor axis measured in metres.
 /// let b : Metres = Metres(6_356_752.314_245_179);
-/// assert_eq!(b, calculate_minor_axis(A, F));
+/// assert_eq!(b, calculate_minor_axis(wgs84::A, wgs84::F));
 /// ```
 #[must_use]
 pub fn calculate_minor_axis(a: Metres, f: f64) -> Metres {
@@ -50,11 +49,10 @@ pub fn calculate_minor_axis(a: Metres, f: f64) -> Metres {
 /// * `f` - the flattening ratio.
 /// # Examples
 /// ```
-/// use icao_wgs84::ellipsoid::wgs84::F;
-/// use icao_wgs84::ellipsoid::calculate_sq_eccentricity;
+/// use icao_wgs84::ellipsoid::{calculate_sq_eccentricity, wgs84};
 ///
 /// // The WGS 84 sq_eccentricity.
-/// assert_eq!(0.0066943799901413165, calculate_sq_eccentricity(F));
+/// assert_eq!(0.0066943799901413165, calculate_sq_eccentricity(wgs84::F));
 /// ```
 #[must_use]
 pub fn calculate_sq_eccentricity(f: f64) -> f64 {
@@ -65,11 +63,10 @@ pub fn calculate_sq_eccentricity(f: f64) -> f64 {
 /// * `f` - the flattening ratio.
 /// # Examples
 /// ```
-/// use icao_wgs84::ellipsoid::wgs84::F;
-/// use icao_wgs84::ellipsoid::calculate_sq_2nd_eccentricity;
+/// use icao_wgs84::ellipsoid::{calculate_sq_2nd_eccentricity, wgs84};
 ///
 /// // The WGS 84 sq 2nd eccentricity.
-/// assert_eq!(0.006739496742276434, calculate_sq_2nd_eccentricity(F));
+/// assert_eq!(0.006739496742276434, calculate_sq_2nd_eccentricity(wgs84::F));
 /// ```
 #[must_use]
 pub fn calculate_sq_2nd_eccentricity(f: f64) -> f64 {
@@ -81,19 +78,18 @@ pub fn calculate_sq_2nd_eccentricity(f: f64) -> f64 {
 /// * `f` - the flattening ratio.
 /// # Examples
 /// ```
-/// use icao_wgs84::ellipsoid::wgs84::F;
-/// use icao_wgs84::ellipsoid::calculate_3rd_flattening;
+/// use icao_wgs84::ellipsoid::{calculate_3rd_flattening, wgs84};
 ///
 /// // The WGS 84 3rd flattening.
-/// assert_eq!(0.0016792203863837047, calculate_3rd_flattening(F));
+/// assert_eq!(0.0016792203863837047, calculate_3rd_flattening(wgs84::F));
 /// ```
 #[must_use]
 pub fn calculate_3rd_flattening(f: f64) -> f64 {
     f / (2.0 - f)
 }
 
-/// Function to calculate epsilon, the variable used in series expansions,
-/// derived from Clairaut's constant. Note: epsilon is positive and small.
+/// Function to calculate `epsilon`, the variable used in series expansions,
+/// derived from Clairaut's constant. Note: `epsilon` is positive and small.  
 /// CFF Karney, [Geodesics on an ellipsoid of revolution](https://arxiv.org/pdf/1102.1215.pdf)
 /// Eqs 22 & 46.
 /// * `clairaut` - Clairaut's constant.
@@ -107,9 +103,9 @@ pub fn calculate_epsilon(clairaut: trig::UnitNegRange, ep_2: f64) -> f64 {
     k2 / (sqrt_k2_1 * sqrt_k2_1) // Karney equation 46
 }
 
-/// Function to convert an geodetic sine Latitude to a parametric sine
+/// Function to convert an `geodetic` sine Latitude to a `parametric` sine
 /// Latitude on the auxiliary sphere.
-/// * `sin_lat` - the geodetic sine Latitude
+/// * `sin_lat` - the `geodetic` sine Latitude
 /// * `e_2` - the square of the Eccentricity of the ellipsoid
 #[must_use]
 pub fn calculate_parametric_sin_latitude(
@@ -121,9 +117,9 @@ pub fn calculate_parametric_sin_latitude(
     )
 }
 
-/// Function to convert a parametric sine Latitude on the auxiliary sphere.
-/// to the geodetic sine Latitude.
-/// * `sin_lat` - the sine of the parametric Latitude.
+/// Function to convert a `parametric` sine Latitude on the auxiliary sphere.
+/// to the `geodetic` sine Latitude.
+/// * `sin_lat` - the sine of the `parametric` Latitude.
 /// * `e_2` - the square of the Eccentricity of the ellipsoid
 #[must_use]
 pub fn calculate_geodetic_sin_latitude(
@@ -135,18 +131,18 @@ pub fn calculate_geodetic_sin_latitude(
     )
 }
 
-/// Function to convert a geodetic Latitude to a parametric Latitude on the
+/// Function to convert a `geodetic` Latitude to a `parametric` Latitude on the
 /// auxiliary sphere.
-/// * `lat` - the geodetic Latitude
+/// * `lat` - the `geodetic` Latitude
 /// * `one_minus_f` - one minus the flattening ratio.
 #[must_use]
 pub fn calculate_parametric_latitude(lat: Angle, one_minus_f: f64) -> Angle {
     Angle::from_y_x(one_minus_f * lat.sin().0, lat.cos().0)
 }
 
-/// Function to convert a parametric Latitude on the auxiliary sphere to a
-/// geodetic Latitude.
-/// * `lat` - the parametric Latitude
+/// Function to convert a `parametric` Latitude on the auxiliary sphere to a
+/// `geodetic` Latitude.
+/// * `lat` - the `parametric` Latitude
 /// * `one_minus_f` - one minus the flattening ratio.
 #[must_use]
 pub fn calculate_geodetic_latitude(lat: Angle, one_minus_f: f64) -> Angle {

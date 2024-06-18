@@ -19,7 +19,8 @@
 // THE SOFTWARE.
 
 //! The geodesic module contains functions for calculating the geodesic path
-//! between two points on the surface of an ellipsoid.
+//! between two points on the surface of an ellipsoid.  
+//! See CFF Karney: [Geodesics on an ellipsoid of revolution](https://arxiv.org/pdf/1102.1215.pdf).
 
 #![allow(clippy::float_cmp)]
 #![allow(clippy::many_single_char_names)]
@@ -35,8 +36,9 @@ use angle_sc::{is_small, Angle, Radians};
 use unit_sphere::{great_circle, LatLong};
 
 /// Estimate omega12 by solving the astroid problem.
-/// Solve k^4+2*k^3-(x^2+y^2-1)*k^2-2*y^2*k-y^2 = 0 for positive root k.
-/// * `x`, `y` - astroid parameters, see Karney section 7.
+/// Solve k^4+2*k^3-(x^2+y^2-1)*k^2-2*y^2*k-y^2 = 0 for positive root k.  
+/// See CFF Karney section 7.
+/// * `x`, `y` - astroid parameter
 ///
 /// returns the solution to the astroid problem.
 #[must_use]
@@ -133,7 +135,7 @@ fn estimate_antipodal_initial_azimuth(
     lambda12: Angle,
     ellipsoid: &Ellipsoid,
 ) -> Angle {
-    const Y_TOLERANCE: f64 = 200.0 * core::f64::EPSILON;
+    const Y_TOLERANCE: f64 = 200.0 * f64::EPSILON;
     const X_TOLERANCE: f64 = 2000.0 / core::f64::consts::FRAC_2_SQRT_PI;
 
     // Calculate the integration parameter for geodesic
@@ -162,22 +164,22 @@ fn estimate_antipodal_initial_azimuth(
 }
 
 /// Calculate the cosine of the longitude difference from the equator crossing.
-/// * `beta` the parametric latitude
-/// * `cos_azimuth` the cosine of the azimuth at the parametric latitude
+/// * `beta` the `parametric` latitude
+/// * `cos_azimuth` the cosine of the azimuth at the `parametric` latitude
 ///
-/// returns the cosine of the longitude difference, zero if the parametric
-/// latitude is close to the equator.
+/// returns the cosine of the longitude difference, zero if the `parametric`
+/// latitude is very close to the equator.
 #[must_use]
 pub fn calculate_cos_omega(beta: Angle, cos_azimuth: UnitNegRange) -> UnitNegRange {
-    if is_small(libm::fabs(beta.sin().0), core::f64::EPSILON) {
+    if is_small(libm::fabs(beta.sin().0), f64::EPSILON) {
         UnitNegRange(1.0)
     } else {
         UnitNegRange(cos_azimuth.0 * beta.cos().0)
     }
 }
 
-/// Calculate the azimuth on the auxiliary sphere at latitude beta2 given the
-/// latitude beta1 and the azimuth at that latitude, alpha1.
+/// Calculate the azimuth on the auxiliary sphere at `parametric` latitude
+/// beta2 given the `parametric` latitude beta1 and azimuth, `alpha1`.
 /// * `beta1`, `beta2` - the parametric latitudes of the start and finish points
 /// on the auxiliary sphere.
 /// * `alpha1` - start point azimuth.
@@ -241,7 +243,7 @@ fn delta_omega12(
 /// Find the azimuth and great circle length on the auxiliary sphere.
 /// It uses Newton's method to solve:
 ///   f(alp1) = lambda12(alp1) - lam12 = 0
-/// * `lat_a`, `lat_b` - the geodetic latitudes of the start and finish points.
+/// * `lat_a`, `lat_b` - the `geodetic` latitudes of the start and finish points.
 /// * `lambda12` - Longitude difference between start and finish points.
 ///
 /// returns the azimuth and great circle length on the auxiliary sphere at the
@@ -344,7 +346,7 @@ fn find_azimuth_and_aux_length(
         }
 
         // Calculate the denominator for Newton's method
-        let dv = if is_small(libm::fabs(alpha2.cos().0), core::f64::EPSILON) {
+        let dv = if is_small(libm::fabs(alpha2.cos().0), f64::EPSILON) {
             -2.0 * ellipsoid.one_minus_f() * dn1 / beta1.sin().0
         } else {
             let m12 = calculate_reduced_length(eps, sigma12_rad, sigma1, dn1, sigma2, dn2);
@@ -409,8 +411,8 @@ pub fn aux_sphere_azimuth_length(
         let gc_length = great_circle::calculate_gc_distance(lat1, lat2, delta_long);
         // gc_azimuth is +/-90° and both latitudes are very close to the equator
         if is_small(gc_azimuth.cos().0, great_circle::MIN_VALUE)
-            && is_small(lat1.abs().sin().0, core::f64::EPSILON)
-            && is_small(lat2.abs().sin().0, core::f64::EPSILON)
+            && is_small(lat1.abs().sin().0, f64::EPSILON)
+            && is_small(lat2.abs().sin().0, f64::EPSILON)
         {
             // Calculate the distance around the equator on the auxillary sphere
             let equatorial_length = Radians(gc_length.0 * ellipsoid.recip_one_minus_f());
@@ -479,7 +481,7 @@ mod tests {
 
     #[test]
     fn test_calculate_astroid() {
-        const Y_TOLERANCE: f64 = 200.0 * core::f64::EPSILON;
+        const Y_TOLERANCE: f64 = 200.0 * f64::EPSILON;
         const X_TOLERANCE: f64 = 2000.0 / core::f64::consts::FRAC_2_SQRT_PI;
 
         assert_eq!(0.0, calculate_astroid(0.0, 0.0));
@@ -508,7 +510,7 @@ mod tests {
 
         assert_eq!(
             1771.453850905516,
-            calculate_astroid(X_TOLERANCE, -Y_TOLERANCE - core::f64::EPSILON)
+            calculate_astroid(X_TOLERANCE, -Y_TOLERANCE - f64::EPSILON)
         );
     }
 
@@ -521,7 +523,7 @@ mod tests {
         assert!(is_within_tolerance(
             30.0,
             Degrees::from(result).0,
-            32.0 * core::f64::EPSILON
+            32.0 * f64::EPSILON
         ));
 
         let result: Angle = calculate_end_azimuth(-angle_50, angle_50, angle_20);

@@ -24,17 +24,16 @@
 
 use angle_sc::{Angle, Radians};
 
-/// The scale factor A1.  
+/// The scale factor `A1`.  
 /// CFF Karney, Eq. 48.
 /// * `eps` - epsilon the integration variable derived from Clairaut's constant.
 /// # Examples
 /// ```
-/// use icao_wgs84::ellipsoid::wgs84::F;
-/// use icao_wgs84::ellipsoid::calculate_sq_2nd_eccentricity;
+/// use icao_wgs84::ellipsoid::{calculate_sq_2nd_eccentricity, wgs84};
 /// use icao_wgs84::ellipsoid::coefficients::evaluate_a1;
 ///
 /// // evaluate_a1 for WGS 84 latitude 45.0
-/// let eps45 = calculate_sq_2nd_eccentricity(F) / 2.0;
+/// let eps45 = calculate_sq_2nd_eccentricity(wgs84::F) / 2.0;
 /// let a1 = evaluate_a1(eps45);
 ///
 /// assert_eq!(0.0033839903702120875, a1);
@@ -46,17 +45,16 @@ pub fn evaluate_a1(eps: f64) -> f64 {
     (t + eps) / (1.0 - eps)
 }
 
-/// The scale factor A2.  
+/// The scale factor `A2`.  
 /// CFF Karney, Eq. 50.
 /// * `eps` - epsilon the integration variable derived from Clairaut's constant.
 /// # Examples
 /// ```
-/// use icao_wgs84::ellipsoid::wgs84::F;
-/// use icao_wgs84::ellipsoid::calculate_sq_2nd_eccentricity;
+/// use icao_wgs84::ellipsoid::{calculate_sq_2nd_eccentricity, wgs84};
 /// use icao_wgs84::ellipsoid::coefficients::evaluate_a2;
 ///
 /// // evaluate_a2 for WGS 84 latitude 45.0
-/// let eps45 = calculate_sq_2nd_eccentricity(F) / 2.0;
+/// let eps45 = calculate_sq_2nd_eccentricity(wgs84::F) / 2.0;
 /// let a1 = evaluate_a2(eps45);
 ///
 /// assert_eq!(-0.0033669191180908161, a1);
@@ -68,7 +66,7 @@ pub fn evaluate_a2(eps: f64) -> f64 {
     (t - eps) / (1. + eps)
 }
 
-/// The coefficients A3.  
+/// The coefficients `A3`.  
 /// CFF Karney, Eq. 52.
 /// * `n` - the third flattening of the ellipsoid.
 #[must_use]
@@ -217,7 +215,7 @@ pub fn sin_cos_series(coeffs: &[f64], angle: Angle) -> Radians {
     let angle2x = angle.double();
     let mut k0 = 0.0;
 
-    if core::f64::EPSILON <= libm::fabs(angle2x.sin().0) {
+    if f64::EPSILON <= libm::fabs(angle2x.sin().0) {
         let mut index = coeffs.len() - 1;
         let mut k1 = 0.0;
 

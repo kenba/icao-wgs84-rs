@@ -114,8 +114,8 @@ pub use unit_sphere::LatLong;
 use angle_sc::{is_small, trig};
 use unit_sphere::{great_circle, Vector3d};
 
-/// The parameters of an Ellipsoid.  
-/// The default value is the WGS84 Ellipsoid.
+/// The parameters of an `Ellipsoid`.  
+/// The default value is the WGS84 `Ellipsoid`.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Ellipsoid {
     /// The Semimajor axis of the ellipsoid.
@@ -136,16 +136,16 @@ pub struct Ellipsoid {
     /// The third flattening of the ellipsoid.
     n: f64,
 
-    /// The A3 series ellipsoid::coefficients of the ellipsoid.
+    /// The A3 series `coefficients` of the ellipsoid.
     a3: [f64; 6],
-    /// The C3x series ellipsoid::coefficients of the ellipsoid.
+    /// The C3x series `coefficients` of the ellipsoid.
     c3x: [f64; 15],
 }
 
 impl Ellipsoid {
     /// Constructor.
-    /// * `a` - the Semimajor axis of the ellipsoid.
-    /// * `f` - the flattening of the ellipsoid, a ratio.
+    /// * `a` - the Semimajor axis of the `Ellipsoid`.
+    /// * `f` - the flattening of the `Ellipsoid`, a ratio.
     #[must_use]
     pub fn new(a: Metres, f: f64) -> Self {
         let one_minus_f = 1.0 - f;
@@ -164,7 +164,7 @@ impl Ellipsoid {
         }
     }
 
-    /// Construct an Ellipsoid with the WGS 84 parameters.
+    /// Construct an `Ellipsoid` with the WGS 84 parameters.
     #[must_use]
     pub fn wgs84() -> Self {
         Self::new(ellipsoid::wgs84::A, ellipsoid::wgs84::F)
@@ -218,13 +218,13 @@ impl Ellipsoid {
         self.n
     }
 
-    /// The A3 series `ellipsoid::coefficients` of the ellipsoid.
+    /// The A3 series `coefficients` of the ellipsoid.
     #[must_use]
     pub const fn a3(&self) -> [f64; 6] {
         self.a3
     }
 
-    /// The C3x series `ellipsoid::coefficients` of the ellipsoid.
+    /// The C3x series `coefficients` of the ellipsoid.
     #[must_use]
     pub const fn c3x(&self) -> [f64; 15] {
         self.c3x
@@ -238,7 +238,7 @@ impl Ellipsoid {
         ellipsoid::calculate_epsilon(clairaut, self.ep_2)
     }
 
-    /// Calculate a3c from the A3 series `ellipsoid::coefficients` of the ellipsoid.
+    /// Calculate a3c from the A3 series `coefficients` of the ellipsoid.
     /// * `clairaut` - Clairaut's constant.
     /// * `eps` - epsilon
     #[must_use]
@@ -270,9 +270,9 @@ impl Ellipsoid {
     }
 }
 
-/// A default Ellipsoid: WGS 84.
+/// A default `Ellipsoid`: WGS 84.
 impl Default for Ellipsoid {
-    /// Construct an Ellipsoid with the WGS 84 parameters.
+    /// Construct an `Ellipsoid` with the WGS 84 parameters.
     #[must_use]
     fn default() -> Self {
         Self::wgs84()
@@ -340,7 +340,7 @@ pub struct Geodesic<'a> {
     a3c: f64,
     /// start point geodesic/great circle distance difference.
     b11: Radians,
-    /// A reference to the underlying Ellipsoid.
+    /// A reference to the underlying `Ellipsoid`.
     ellipsoid: &'a Ellipsoid,
 }
 
@@ -358,7 +358,7 @@ impl<'a> Geodesic<'a> {
     /// * `lon` - the start point longitude.
     /// * `azi` - the start azimuth.
     /// * `aux_length` - the Great Circle length on the auxiliary sphere in radians.
-    /// * `ellipsoid` - a reference to the Ellipsoid.
+    /// * `ellipsoid` - a reference to the `Ellipsoid`.
     #[must_use]
     pub fn new(
         beta: Angle,
@@ -366,7 +366,7 @@ impl<'a> Geodesic<'a> {
         azi: Angle,
         aux_length: Radians,
         ellipsoid: &'a Ellipsoid,
-    ) -> Geodesic<'a> {
+    ) -> Self {
         // Calculate the azimuth at the first Equator crossing
         let clairaut = trig::UnitNegRange(azi.sin().0 * beta.cos().0);
         let cos_azi0 = trig::UnitNegRange(libm::hypot(azi.cos().0, azi.sin().0 * beta.sin().0));
@@ -399,7 +399,7 @@ impl<'a> Geodesic<'a> {
     /// * `a` - the start position in geodetic coordinates.
     /// * `azimuth` - the azimuth at the start position.
     /// * `aux_length` - the Great Circle length on the auxiliary sphere in radians.
-    /// * `ellipsoid` - a reference to the Ellipsoid.
+    /// * `ellipsoid` - a reference to the `Ellipsoid`.
     #[must_use]
     pub fn from_lat_lon_azi_aux_length(
         a: &LatLong,
@@ -422,8 +422,8 @@ impl<'a> Geodesic<'a> {
     /// @pre |lat| <= 90.0 degrees.
     /// * `a` - the start position in geodetic coordinates.
     /// * `azimuth` - the azimuth at the start position.
-    /// * `length` - the length on the Ellipsoid in metres.
-    /// * `ellipsoid` - a reference to the Ellipsoid.
+    /// * `length` - the length on the `Ellipsoid` in metres.
+    /// * `ellipsoid` - a reference to the `Ellipsoid`.
     #[must_use]
     pub fn from_lat_lon_azi_length(
         a: &LatLong,
@@ -439,7 +439,7 @@ impl<'a> Geodesic<'a> {
     /// Construct a `Geodesic` between a pair of positions, the "indirect" method.  
     /// @pre |lat| <= 90.0 degrees.
     /// * `a`, `b` - the start and finish positions in geodetic coordinates.
-    /// * `ellipsoid` - a reference to the Ellipsoid.
+    /// * `ellipsoid` - a reference to the `Ellipsoid`.
     #[must_use]
     pub fn between_positions(a: &LatLong, b: &LatLong, ellipsoid: &'a Ellipsoid) -> Self {
         let (azimuth, aux_length) = geodesic::calculate_azimuth_aux_length(a, b, ellipsoid);
@@ -489,7 +489,7 @@ impl<'a> Geodesic<'a> {
         self.aux_length
     }
 
-    /// Accessor for the reference to the underlying Ellipsoid.
+    /// Accessor for the reference to the underlying `Ellipsoid`.
     #[must_use]
     pub const fn ellipsoid(&self) -> &Ellipsoid {
         self.ellipsoid
@@ -542,7 +542,7 @@ impl<'a> Geodesic<'a> {
     ///
     /// return the parametric latitude of the position at length.
     #[must_use]
-    fn aux_beta(&self, length: Angle) -> Angle {
+    pub fn aux_beta(&self, length: Angle) -> Angle {
         let sin_beta = trig::UnitNegRange(
             length.cos().0 * self.beta.sin().0
                 + length.sin().0 * self.beta.cos().0 * self.azi.cos().0,
@@ -667,7 +667,7 @@ impl<'a> Geodesic<'a> {
         )
     }
 
-    /// Calculate the geodesic `LatLong` at the length along the `Geogesic`.
+    /// Calculate the geodesic `LatLong` at the length along the `Geodesic`.
     /// * `length` - the length in `Metres`.
     ///
     /// return the `LatLong` of the geodesic position at `length`.
@@ -812,12 +812,12 @@ impl<'a> Geodesic<'a> {
     /// assert!(is_within_tolerance(
     ///     54.92853149711691,
     ///     Degrees::from(position.lat()).0,
-    ///     128.0 * core::f64::EPSILON
+    ///     128.0 * f64::EPSILON
     /// ));
     /// assert!(is_within_tolerance(
     ///     -21.93729106604878,
     ///     Degrees::from(position.lon()).0,
-    ///     2048.0 * core::f64::EPSILON
+    ///     2048.0 * f64::EPSILON
     /// ));
     /// ```
     #[allow(clippy::similar_names)]
@@ -848,9 +848,9 @@ impl<'a> From<(&LatLong, Angle, Radians, &'a Ellipsoid)> for Geodesic<'a> {
     /// * `a` - the start position in geodetic coordinates.
     /// * `azimuth` - the azimuth at the start position.
     /// * `aux_length` - the Great Circle length on the auxiliary sphere in radians.
-    /// * `ellipsoid` - a reference to the Ellipsoid.
+    /// * `ellipsoid` - a reference to the `Ellipsoid`.
     #[must_use]
-    fn from(params: (&LatLong, Angle, Radians, &'a Ellipsoid)) -> Geodesic<'a> {
+    fn from(params: (&LatLong, Angle, Radians, &'a Ellipsoid)) -> Self {
         Geodesic::from_lat_lon_azi_aux_length(params.0, params.1, params.2, params.3)
     }
 }
@@ -860,10 +860,10 @@ impl<'a> From<(&LatLong, Angle, Metres, &'a Ellipsoid)> for Geodesic<'a> {
     /// @pre |lat| <= 90.0 degrees.
     /// * `a` - the start position in geodetic coordinates.
     /// * `azimuth` - the azimuth at the start position.
-    /// * `length` - the length on the Ellipsoid in metres.
-    /// * `ellipsoid` - a reference to the Ellipsoid.
+    /// * `length` - the length on the `Ellipsoid` in metres.
+    /// * `ellipsoid` - a reference to the `Ellipsoid`.
     #[must_use]
-    fn from(params: (&LatLong, Angle, Metres, &'a Ellipsoid)) -> Geodesic<'a> {
+    fn from(params: (&LatLong, Angle, Metres, &'a Ellipsoid)) -> Self {
         Geodesic::from_lat_lon_azi_length(params.0, params.1, params.2, params.3)
     }
 }
@@ -872,9 +872,9 @@ impl<'a> From<(&LatLong, &LatLong, &'a Ellipsoid)> for Geodesic<'a> {
     /// Construct a `Geodesic` between a pair of positions, the "indirect" method.  
     /// @pre |lat| <= 90.0 degrees.
     /// * `a`, `b` - the start and finish positions in geodetic coordinates.
-    /// * `ellipsoid` - a reference to the Ellipsoid.
+    /// * `ellipsoid` - a reference to the `Ellipsoid`.
     #[must_use]
-    fn from(params: (&LatLong, &LatLong, &'a Ellipsoid)) -> Geodesic<'a> {
+    fn from(params: (&LatLong, &LatLong, &'a Ellipsoid)) -> Self {
         Self::between_positions(params.0, params.1, params.2)
     }
 }
@@ -928,7 +928,7 @@ pub fn calculate_intersection_distances(
 ) -> (Radians, Radians, u32) {
     const MAX_ITERATIONS: u32 = 10;
 
-    // Geodesic MUST be on the same Ellipsoid
+    // Geodesic MUST be on the same `Ellipsoid`
     assert!(g1.ellipsoid() == g2.ellipsoid());
 
     // Convert the precision to Radians
@@ -1208,12 +1208,12 @@ mod tests {
         assert!(is_within_tolerance(
             42.0,
             Degrees::from(wgs84_ellipsoid.calculate_geodetic_latitude(g1.beta())).0,
-            32.0 * core::f64::EPSILON
+            32.0 * f64::EPSILON
         ));
         assert!(is_within_tolerance(
             29.0,
             Degrees::from(g1.lon()).0,
-            16.0 * core::f64::EPSILON
+            16.0 * f64::EPSILON
         ));
 
         let lat_long: LatLong = g1.lat_long(Metres(0.0));
@@ -1221,12 +1221,12 @@ mod tests {
         assert!(is_within_tolerance(
             istanbul.lat().0,
             lat_long.lat().0,
-            32.0 * core::f64::EPSILON
+            32.0 * f64::EPSILON
         ));
         assert!(is_within_tolerance(
             istanbul.lon().0,
             lat_long.lon().0,
-            32.0 * core::f64::EPSILON
+            32.0 * f64::EPSILON
         ));
 
         let (atd, xtd, iterations) = g1.calculate_atd_and_xtd(&istanbul, Metres(1e-3));
@@ -1245,12 +1245,12 @@ mod tests {
         assert!(is_within_tolerance(
             39.0,
             Degrees::from(g1.latitude(length)).0,
-            32.0 * core::f64::EPSILON
+            32.0 * f64::EPSILON
         ));
         assert!(is_within_tolerance(
             -77.0,
             Degrees::from(g1.longitude(length)).0,
-            64.0 * core::f64::EPSILON
+            64.0 * f64::EPSILON
         ));
 
         // test mid position
@@ -1260,13 +1260,13 @@ mod tests {
         assert!(is_within_tolerance(
             54.86379153725445,
             Degrees::from(mid_position.lat()).0,
-            64.0 * core::f64::EPSILON
+            64.0 * f64::EPSILON
         ));
 
         assert!(is_within_tolerance(
             -25.694568908316413,
             Degrees::from(mid_position.lon()).0,
-            32.0 * core::f64::EPSILON
+            32.0 * f64::EPSILON
         ));
 
         let mid_length = g1.metres_to_radians(half_length);
@@ -1316,7 +1316,7 @@ mod tests {
         assert!(is_within_tolerance(
             core::f64::consts::FRAC_PI_2,
             g1.aux_length().0,
-            core::f64::EPSILON
+            f64::EPSILON
         ));
         assert_eq!(180.0, Degrees::from(g1.azi()).0);
     }
@@ -1332,7 +1332,7 @@ mod tests {
         assert!(is_within_tolerance(
             core::f64::consts::FRAC_PI_2,
             g1.aux_length().0,
-            core::f64::EPSILON
+            f64::EPSILON
         ));
         assert_eq!(0.0, Degrees::from(g1.azi()).0);
     }
@@ -1361,12 +1361,12 @@ mod tests {
         assert!(is_within_tolerance(
             54.92853149711691,
             Degrees::from(position.lat()).0,
-            128.0 * core::f64::EPSILON
+            128.0 * f64::EPSILON
         ));
         assert!(is_within_tolerance(
             -21.93729106604878,
             Degrees::from(position.lon()).0,
-            2048.0 * core::f64::EPSILON
+            2048.0 * f64::EPSILON
         ));
 
         // Test delta_azimuth at interception, should be PI/2
@@ -1377,7 +1377,7 @@ mod tests {
         assert!(is_within_tolerance(
             core::f64::consts::FRAC_PI_2,
             Radians::from(delta_azimuth).0,
-            128.0 * core::f64::EPSILON
+            128.0 * f64::EPSILON
         ));
 
         // opposite geodesic

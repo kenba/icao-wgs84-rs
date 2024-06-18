@@ -129,12 +129,12 @@ let position = g1.lat_long(atd);
 assert!(is_within_tolerance(
     54.92853149711691,
     Degrees::from(position.lat()).0,
-    128.0 * core::f64::EPSILON
+    128.0 * f64::EPSILON
 ));
 assert!(is_within_tolerance(
     -21.93729106604878,
     Degrees::from(position.lon()).0,
-    2048.0 * core::f64::EPSILON
+    2048.0 * f64::EPSILON
 ));
 ```
 
