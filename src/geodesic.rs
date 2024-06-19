@@ -25,14 +25,8 @@
 #![allow(clippy::float_cmp)]
 #![allow(clippy::many_single_char_names)]
 
-use crate::ellipsoid::coefficients::{
-    evaluate_a1, evaluate_a2, evaluate_coeffs_c1, evaluate_coeffs_c2, evaluate_coeffs_c3y,
-    evaluate_polynomial, sin_cos_series,
-};
-use crate::ellipsoid::{calculate_epsilon, calculate_parametric_latitude, Metres};
-use crate::Ellipsoid;
-use angle_sc::trig::{cosine_from_sine, UnitNegRange};
-use angle_sc::{is_small, Angle, Radians};
+use crate::{ellipsoid, Ellipsoid, Metres};
+use angle_sc::{is_small, trig, trig::UnitNegRange, Angle, Radians};
 use unit_sphere::{great_circle, LatLong};
 
 /// Estimate omega12 by solving the astroid problem.
@@ -100,22 +94,26 @@ fn calculate_reduced_length(
     sigma2: Angle,
     dn2: f64,
 ) -> f64 {
-    let a1 = evaluate_a1(eps);
-    let a2 = evaluate_a2(eps);
+    let a1 = ellipsoid::coefficients::evaluate_a1(eps);
+    let a2 = ellipsoid::coefficients::evaluate_a2(eps);
     let m0x = a1 - a2;
 
     let a1p1 = 1.0 + a1;
     let a2p1 = 1.0 + a2;
 
-    let ca = evaluate_coeffs_c1(eps);
-    let mut cb = evaluate_coeffs_c2(eps);
+    let ca = ellipsoid::coefficients::evaluate_coeffs_c1(eps);
+    let mut cb = ellipsoid::coefficients::evaluate_coeffs_c2(eps);
 
     // Assume here that ca.len() >= cb.len()
     for i in 1..cb.len() {
         cb[i] = a1p1 * ca[i] - a2p1 * cb[i];
     }
 
-    let j12 = m0x * (sigma12 + (sin_cos_series(&cb, sigma2) - sin_cos_series(&cb, sigma1))).0;
+    let j12 = m0x
+        * (sigma12
+            + (ellipsoid::coefficients::sin_cos_series(&cb, sigma2)
+                - ellipsoid::coefficients::sin_cos_series(&cb, sigma1)))
+        .0;
     dn2 * (sigma1.cos().0 * sigma2.sin().0)
         - dn1 * (sigma1.sin().0 * sigma2.cos().0)
         - sigma1.cos().0 * sigma2.cos().0 * j12
@@ -140,8 +138,8 @@ fn estimate_antipodal_initial_azimuth(
 
     // Calculate the integration parameter for geodesic
     let clairaut = beta1.cos(); // Note: assumes sin_alpha_1 = 1
-    let eps = calculate_epsilon(clairaut, ellipsoid.ep_2());
-    let a3f = evaluate_polynomial(&ellipsoid.a3(), eps);
+    let eps = ellipsoid.calculate_epsilon(clairaut);
+    let a3f = ellipsoid::coefficients::evaluate_polynomial(&ellipsoid.a3(), eps);
 
     let lamscale = ellipsoid.f() * beta1.cos().0 * a3f * core::f64::consts::PI;
     let betscale = lamscale * beta1.cos().0;
@@ -159,7 +157,7 @@ fn estimate_antipodal_initial_azimuth(
         great_circle::calculate_gc_azimuth(beta1, beta2, Angle::from(omega12))
     } else {
         let sin_alpha = UnitNegRange(if -x < 1.0 { -x } else { 1.0 });
-        Angle::new(sin_alpha, cosine_from_sine(sin_alpha, -1.0))
+        Angle::new(sin_alpha, trig::cosine_from_sine(sin_alpha, -1.0))
     }
 }
 
@@ -171,7 +169,7 @@ fn estimate_antipodal_initial_azimuth(
 /// latitude is very close to the equator.
 #[must_use]
 pub fn calculate_cos_omega(beta: Angle, cos_azimuth: UnitNegRange) -> UnitNegRange {
-    if is_small(libm::fabs(beta.sin().0), f64::EPSILON) {
+    if is_small(beta.sin().abs().0, f64::EPSILON) {
         UnitNegRange(1.0)
     } else {
         UnitNegRange(cos_azimuth.0 * beta.cos().0)
@@ -196,24 +194,23 @@ fn calculate_end_azimuth(beta1: Angle, beta2: Angle, alpha1: Angle) -> Angle {
     };
 
     // Karney's method to calculate the cosine of the end azimuth
-    let cos_alpha2 =
-        if (beta2.cos() != beta1.cos()) || (libm::fabs(beta2.sin().0) != -beta1.sin().0) {
-            let temp1 = alpha1.cos().0 * beta1.cos().0;
-            let temp2 = if beta1.cos().0 < libm::fabs(beta1.sin().0) {
-                (beta2.cos().0 - beta1.cos().0) * (beta1.cos().0 + beta2.cos().0)
-            } else {
-                (beta1.sin().0 - beta2.sin().0) * (beta1.sin().0 + beta2.sin().0)
-            };
-            let temp3 = temp1 * temp1 + temp2;
-            let temp4 = if 0.0 < temp3 {
-                libm::sqrt(temp3) / beta2.cos().0
-            } else {
-                0.0
-            };
-            UnitNegRange::clamp(temp4)
+    let cos_alpha2 = if (beta2.cos() != beta1.cos()) || (beta2.sin().abs().0 != -beta1.sin().0) {
+        let temp1 = alpha1.cos().0 * beta1.cos().0;
+        let temp2 = if beta1.cos().0 < beta1.abs().sin().0 {
+            (beta2.cos().0 - beta1.cos().0) * (beta1.cos().0 + beta2.cos().0)
         } else {
-            UnitNegRange(libm::fabs(alpha1.cos().0))
+            (beta1.sin().0 - beta2.sin().0) * (beta1.sin().0 + beta2.sin().0)
         };
+        let temp3 = temp1 * temp1 + temp2;
+        let temp4 = if 0.0 < temp3 {
+            libm::sqrt(temp3) / beta2.cos().0
+        } else {
+            0.0
+        };
+        UnitNegRange::clamp(temp4)
+    } else {
+        alpha1.cos().abs()
+    };
 
     Angle::new(sin_alpha2, cos_alpha2)
 }
@@ -230,12 +227,12 @@ fn delta_omega12(
     sigma2: Angle,
     ellipsoid: &Ellipsoid,
 ) -> f64 {
-    let a3f = evaluate_polynomial(&ellipsoid.a3(), eps);
+    let a3f = ellipsoid::coefficients::evaluate_polynomial(&ellipsoid.a3(), eps);
     let a3c = ellipsoid.f() * clairaut.0 * a3f;
 
-    let c3 = evaluate_coeffs_c3y(&ellipsoid.c3x(), eps);
-    let b31 = sin_cos_series(&c3, sigma1);
-    let b32 = sin_cos_series(&c3, sigma2);
+    let c3 = ellipsoid::coefficients::evaluate_coeffs_c3y(&ellipsoid.c3x(), eps);
+    let b31 = ellipsoid::coefficients::sin_cos_series(&c3, sigma1);
+    let b32 = ellipsoid::coefficients::sin_cos_series(&c3, sigma2);
 
     a3c * (sigma12 + (b32 - b31)).0
 }
@@ -243,7 +240,7 @@ fn delta_omega12(
 /// Find the azimuth and great circle length on the auxiliary sphere.
 /// It uses Newton's method to solve:
 ///   f(alp1) = lambda12(alp1) - lam12 = 0
-/// * `lat_a`, `lat_b` - the `geodetic` latitudes of the start and finish points.
+/// * `beta_a`, `beta_b` - the `parametric` latitudes of the start and finish points.
 /// * `lambda12` - Longitude difference between start and finish points.
 ///
 /// returns the azimuth and great circle length on the auxiliary sphere at the
@@ -251,8 +248,8 @@ fn delta_omega12(
 #[allow(clippy::similar_names)]
 #[must_use]
 fn find_azimuth_and_aux_length(
-    lat_a: Angle,
-    lat_b: Angle,
+    beta_a: Angle,
+    beta_b: Angle,
     lambda12: Angle,
     gc_length: Radians,
     ellipsoid: &Ellipsoid,
@@ -264,20 +261,16 @@ fn find_azimuth_and_aux_length(
     const MAX_ITERS: u32 = 20;
 
     // Start at the latitude furthest from the Equator
-    let swap_latitudes = libm::fabs(lat_a.sin().0) < libm::fabs(lat_b.sin().0);
-    let mut lat1 = if swap_latitudes { lat_b } else { lat_a };
-    let mut lat2 = if swap_latitudes { lat_a } else { lat_b };
+    let swap_latitudes = beta_a.sin().abs() < beta_b.sin().abs();
+    let mut beta1 = if swap_latitudes { beta_b } else { beta_a };
+    let mut beta2 = if swap_latitudes { beta_a } else { beta_b };
 
     // Start South of the Equator
-    let negate_latitude = 0.0 < lat1.sin().0;
+    let negate_latitude = 0.0 < beta1.sin().0;
     if negate_latitude {
-        lat1 = -lat1;
-        lat2 = -lat2;
+        beta1 = -beta1;
+        beta2 = -beta2;
     }
-
-    // project latitudes onto the auxiliary sphere
-    let beta1 = calculate_parametric_latitude(lat1, ellipsoid.one_minus_f());
-    let beta2 = calculate_parametric_latitude(lat2, ellipsoid.one_minus_f());
 
     let dn1 = libm::sqrt(1.0 + ellipsoid.ep_2() * beta1.sin().0 * beta1.sin().0);
     let dn2 = libm::sqrt(1.0 + ellipsoid.ep_2() * beta2.sin().0 * beta2.sin().0);
@@ -290,7 +283,9 @@ fn find_azimuth_and_aux_length(
     let mut alpha1 = if antipodal_arc_threshold < gc_length.0 {
         estimate_antipodal_initial_azimuth(beta1, beta2, abs_lambda12, ellipsoid)
     } else {
-        // Use great circle azimuth at the start
+        // Calculate great circle azimuth at the start using geodetic latitudes
+        let lat1 = ellipsoid.calculate_geodetic_latitude(beta1);
+        let lat2 = ellipsoid.calculate_geodetic_latitude(beta2);
         great_circle::calculate_gc_azimuth(lat1, lat2, abs_lambda12)
     };
     let mut alpha2 = alpha1;
@@ -300,7 +295,7 @@ fn find_azimuth_and_aux_length(
     for _i in 0..MAX_ITERS {
         // Calculate Clairaut's constant
         let clairaut = UnitNegRange(alpha1.sin().0 * beta1.cos().0);
-        let eps = calculate_epsilon(clairaut, ellipsoid.ep_2());
+        let eps = ellipsoid.calculate_epsilon(clairaut);
 
         // Calculate first longitude (omega1) and distance (sigma1) from the
         // Northbound equator crossing
@@ -346,7 +341,7 @@ fn find_azimuth_and_aux_length(
         }
 
         // Calculate the denominator for Newton's method
-        let dv = if is_small(libm::fabs(alpha2.cos().0), f64::EPSILON) {
+        let dv = if is_small(alpha2.cos().abs().0, f64::EPSILON) {
             -2.0 * ellipsoid.one_minus_f() * dn1 / beta1.sin().0
         } else {
             let m12 = calculate_reduced_length(eps, sigma12_rad, sigma1, dn1, sigma2, dn2);
@@ -358,7 +353,7 @@ fn find_azimuth_and_aux_length(
 
         // Calculate the change in initial azimuth
         let dalpha1 = UnitNegRange::clamp(-v / dv);
-        if is_small(libm::fabs(dalpha1.0), MAX_PRECISION.0) {
+        if is_small(dalpha1.abs().0, MAX_PRECISION.0) {
             break;
         }
 
@@ -384,49 +379,50 @@ fn find_azimuth_and_aux_length(
 
 /// Calculate the initial azimuth and great circle length between a pair
 /// of points on the auxiliary sphere.
-/// * `lat1`, `lat2` - the geodesic latitudes of the start and finish points
-/// on the auxiliary sphere.
-/// * `delta_long` - the geodesic longitude difference.
+/// * `beta1`, `beta2` - the `parametric` latitudes of the start and finish
+/// points on the auxiliary sphere.
+/// * `delta_long` - the longitude difference on the auxiliary sphere.
+/// * `ellipsoid` - the `Ellipsoid`.
 ///
 /// returns the azimuth and great circle length on the auxiliary sphere at the
 /// start of the geodesic.
 #[must_use]
 pub fn aux_sphere_azimuth_length(
-    lat1: Angle,
-    lat2: Angle,
+    beta1: Angle,
+    beta2: Angle,
     delta_long: Angle,
     ellipsoid: &Ellipsoid,
 ) -> (Angle, Radians) {
     // Determine whether on a meridian, i.e. a great circle which passes through the North and South poles
-    let gc_azimuth = great_circle::calculate_gc_azimuth(lat1, lat2, delta_long);
+    let gc_azimuth = great_circle::calculate_gc_azimuth(beta1, beta2, delta_long);
+
     // gc_azimuth is 0° or 180°
     if is_small(gc_azimuth.abs().sin().0, great_circle::MIN_VALUE) {
         // Calculate the meridian distance on the auxillary sphere
-        let beta1 = calculate_parametric_latitude(lat1, ellipsoid.one_minus_f());
-        let beta2 = calculate_parametric_latitude(lat2, ellipsoid.one_minus_f());
         let meridian_length = great_circle::calculate_gc_distance(beta1, beta2, delta_long);
         (gc_azimuth, meridian_length)
     } else {
         // Determine whether on an equatorial path, i.e. the circle around the equator.
-        let gc_length = great_circle::calculate_gc_distance(lat1, lat2, delta_long);
+        let gc_length = great_circle::calculate_gc_distance(beta1, beta2, delta_long);
         // gc_azimuth is +/-90° and both latitudes are very close to the equator
         if is_small(gc_azimuth.cos().0, great_circle::MIN_VALUE)
-            && is_small(lat1.abs().sin().0, f64::EPSILON)
-            && is_small(lat2.abs().sin().0, f64::EPSILON)
+            && is_small(beta1.abs().sin().0, f64::EPSILON)
+            && is_small(beta2.abs().sin().0, f64::EPSILON)
         {
             // Calculate the distance around the equator on the auxillary sphere
             let equatorial_length = Radians(gc_length.0 * ellipsoid.recip_one_minus_f());
             (gc_azimuth, equatorial_length)
         } else {
             // Iterate to find the azimuth and length on the auxillary sphere
-            find_azimuth_and_aux_length(lat1, lat2, delta_long, gc_length, ellipsoid)
+            find_azimuth_and_aux_length(beta1, beta2, delta_long, gc_length, ellipsoid)
         }
     }
 }
 
-/// Calculate the geodesic azimuth and great circle length on the auxiliary sphere
-/// between a pair of positions .
+/// Calculate the `geodesic` azimuth and great circle length on the auxiliary sphere
+/// between a pair of positions.
 /// * `a`, `b` - the start and finish positions in geodetic coordinates.
+/// * `ellipsoid` - the `Ellipsoid`.
 ///
 /// returns the azimuth and great circle length on the auxiliary sphere at the
 /// start of the geodesic.
@@ -436,10 +432,13 @@ pub fn calculate_azimuth_aux_length(
     b: &LatLong,
     ellipsoid: &Ellipsoid,
 ) -> (Angle, Radians) {
-    let a_lat = Angle::from(a.lat());
-    let b_lat = Angle::from(b.lat());
+    // calculate the parametric latitudes on the auxiliary sphere
+    let beta_a = ellipsoid.calculate_parametric_latitude(Angle::from(a.lat()));
+    let beta_b = ellipsoid.calculate_parametric_latitude(Angle::from(b.lat()));
+
+    // calculate the longitude difference
     let delta_long = Angle::from(b.lon() - a.lon());
-    aux_sphere_azimuth_length(a_lat, b_lat, delta_long, ellipsoid)
+    aux_sphere_azimuth_length(beta_a, beta_b, delta_long, ellipsoid)
 }
 
 /// Convert a great circle distance on the auxiliary sphere in radians to
@@ -447,7 +446,7 @@ pub fn calculate_azimuth_aux_length(
 /// * `beta1`, the start parametric Latitude on the auxiliary sphere.
 /// * `alpha1`, the azimuth at the start point.
 /// * `gc_distance`, the great circle distance on the auxiliary sphere in radians.
-/// * `ellipsoid`, the Ellipsoid
+/// * `ellipsoid` - the `Ellipsoid`.
 ///
 /// returns the geodesic distance in metres.
 #[must_use]
@@ -464,11 +463,11 @@ pub fn convert_radians_to_metres(
 
     // Calculate the ellipsoid coefficients
     let clairaut = UnitNegRange(alpha1.sin().0 * beta1.cos().0);
-    let eps = calculate_epsilon(clairaut, ellipsoid.ep_2());
-    let a1 = evaluate_a1(eps) + 1.0;
-    let c1 = evaluate_coeffs_c1(eps);
-    let b11 = sin_cos_series(&c1, sigma1);
-    let b12 = sin_cos_series(&c1, sigma_sum);
+    let eps = ellipsoid.calculate_epsilon(clairaut);
+    let a1 = ellipsoid::coefficients::evaluate_a1(eps) + 1.0;
+    let c1 = ellipsoid::coefficients::evaluate_coeffs_c1(eps);
+    let b11 = ellipsoid::coefficients::sin_cos_series(&c1, sigma1);
+    let b12 = ellipsoid::coefficients::sin_cos_series(&c1, sigma_sum);
 
     Metres(ellipsoid.b().0 * a1 * (gc_distance + b12 - b11).0)
 }
@@ -536,7 +535,7 @@ mod tests {
 
         // 0.0, 0.0 to 30.0, 90.0
         let clairaut_30_90 = Angle::from(Degrees(60.0)).sin();
-        let eps_30_90 = calculate_epsilon(clairaut_30_90, wgs84_ellipsoid.ep_2());
+        let eps_30_90 = wgs84_ellipsoid.calculate_epsilon(clairaut_30_90);
         let lam12_30_90 = delta_omega12(
             clairaut_30_90,
             eps_30_90,
@@ -549,7 +548,7 @@ mod tests {
 
         // 0.0, 0.0 to 45.0, 90.0
         let clairaut_45_90 = Angle::from(Degrees(45.0)).sin();
-        let eps_45_90 = calculate_epsilon(clairaut_45_90, wgs84_ellipsoid.ep_2());
+        let eps_45_90 = wgs84_ellipsoid.calculate_epsilon(clairaut_45_90);
         let lam12_45_90 = delta_omega12(
             clairaut_45_90,
             eps_45_90,
@@ -562,7 +561,7 @@ mod tests {
 
         // 0.0, 0.0 to 60.0, 90.0
         let clairaut_60_90 = Angle::from(Degrees(30.0)).sin();
-        let eps_60_90 = calculate_epsilon(clairaut_60_90, wgs84_ellipsoid.ep_2());
+        let eps_60_90 = wgs84_ellipsoid.calculate_epsilon(clairaut_60_90);
         let lam12_60_90 = delta_omega12(
             clairaut_60_90,
             eps_60_90,

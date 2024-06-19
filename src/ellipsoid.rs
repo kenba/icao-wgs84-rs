@@ -26,15 +26,16 @@
 pub mod coefficients;
 pub mod wgs84;
 
-pub use angle_sc::{trig, Angle};
-pub use icao_units::si::Metres;
+use crate::Metres;
+use angle_sc::{trig, Angle};
 
 /// Calculate the Semiminor axis of an ellipsoid.
 /// * `a` - the Semimajor axis of an ellipsoid.
 /// * `f` - the flattening ratio.
 /// # Examples
 /// ```
-/// use icao_wgs84::ellipsoid::{Metres, calculate_minor_axis, wgs84};
+/// use icao_wgs84::Metres;
+/// use icao_wgs84::ellipsoid::{calculate_minor_axis, wgs84};
 ///
 /// // The WGS 84 Semiminor axis measured in metres.
 /// let b : Metres = Metres(6_356_752.314_245_179);
@@ -152,7 +153,7 @@ pub fn calculate_geodetic_latitude(lat: Angle, one_minus_f: f64) -> Angle {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use angle_sc::{Degrees, Radians};
+    use angle_sc::{is_within_tolerance, Degrees, Radians};
 
     #[test]
     fn test_calculate_epsilon() {
@@ -186,8 +187,7 @@ mod tests {
             let result = calculate_geodetic_sin_latitude(sin_parametric_lat, wgs84_e2);
 
             // assert_eq!(sin_lat.0,  result.0);  // Does not work, not accurate enough.
-            let delta_result = libm::fabs(sin_lat.0 - result.0);
-            assert!(delta_result < std::f64::EPSILON);
+            assert!(is_within_tolerance(sin_lat.0, result.0, f64::EPSILON));
         }
     }
 
@@ -201,8 +201,11 @@ mod tests {
             let parametric_lat = calculate_parametric_latitude(lat, one_minus_f);
             let result = calculate_geodetic_latitude(parametric_lat, one_minus_f);
 
-            let delta_result = libm::fabs(Radians::from(lat).0 - Radians::from(result).0);
-            assert!(delta_result <= std::f64::EPSILON);
+            assert!(is_within_tolerance(
+                Radians::from(lat).0,
+                Radians::from(result).0,
+                f64::EPSILON
+            ));
         }
     }
 }

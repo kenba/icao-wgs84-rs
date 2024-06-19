@@ -22,7 +22,7 @@
 //! [WGS 84 Implementation Manual Version 2.4](https://www.icao.int/safety/pbn/Documentation/EUROCONTROL/Eurocontrol%20WGS%2084%20Implementation%20Manual.pdf)
 //! Chapter 3, page 14.
 
-use crate::ellipsoid::Metres;
+use crate::Metres;
 
 /// The WGS 84 Semimajor axis measured in metres.  
 /// This is the radius at the equator.

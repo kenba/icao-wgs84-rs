@@ -521,7 +521,7 @@ impl<'a> Geodesic<'a> {
     /// returns the distance in metres on the ellipsoid.
     #[must_use]
     pub fn radians_to_metres(&self, gc_distance: Radians) -> Metres {
-        if is_small(libm::fabs(gc_distance.0), great_circle::MIN_VALUE) {
+        if is_small(gc_distance.abs().0, great_circle::MIN_VALUE) {
             Metres(0.0)
         } else {
             let sigma_sum = self.sigma1 + Angle::from(gc_distance);
@@ -579,7 +579,7 @@ impl<'a> Geodesic<'a> {
     pub fn aux_azimuth(&self, gc_length: Radians) -> Angle {
         const MAX_LAT: f64 = 1.0 - great_circle::MIN_VALUE;
 
-        if is_small(libm::fabs(gc_length.0), great_circle::MIN_VALUE) {
+        if is_small(gc_length.abs().0, great_circle::MIN_VALUE) {
             self.azi
         } else {
             let length = Angle::from(gc_length);
@@ -613,7 +613,7 @@ impl<'a> Geodesic<'a> {
     #[allow(clippy::similar_names)]
     #[must_use]
     pub fn delta_longitude(&self, gc_length: Radians) -> Angle {
-        if is_small(libm::fabs(gc_length.0), great_circle::MIN_VALUE) {
+        if is_small(gc_length.abs().0, great_circle::MIN_VALUE) {
             Angle::default()
         } else {
             // The great circle distance from Northward Equator crossing.
@@ -677,6 +677,29 @@ impl<'a> Geodesic<'a> {
         self.aux_lat_long(gc_length)
     }
 
+    /// Calculate the vector on the auxiliary sphere at `gc_length` in `Radians`.
+    /// * `gc_length` the great circle length on the auxiliary sphere
+    ///
+    /// returns the point on the auxiliary sphere at `gc_length`.
+    #[must_use]
+    pub fn aux_point(&self, gc_length: Radians) -> Vector3d {
+        if is_small(gc_length.abs().0, great_circle::MIN_VALUE) {
+            unit_sphere::vector::to_point(self.beta, self.lon)
+        } else {
+            let beta: Angle = self.aux_beta(Angle::from(gc_length));
+            let lon = self.aux_longitude(gc_length);
+            unit_sphere::vector::to_point(beta, lon)
+        }
+    }
+
+    /// Calculate the vector on the auxiliary sphere at the mid point of the `Geodesic`.
+    ///
+    /// returns the mid point vector of the `Geodesic`.
+    #[must_use]
+    pub fn mid_point(&self) -> Vector3d {
+        self.aux_point(self.metres_to_radians(Metres(0.5 * self.length().0)))
+    }
+
     /// Calculate the geodesic point and pole at the length along the geodesic.
     /// * `gc_length` the great circle length on the auxiliary sphere
     ///
@@ -686,7 +709,7 @@ impl<'a> Geodesic<'a> {
         let point = unit_sphere::vector::to_point(self.beta, self.lon);
         let pole = unit_sphere::vector::calculate_pole(self.beta, self.lon, self.azi);
         // If at the start of the geodesic
-        if is_small(libm::fabs(gc_length.0), great_circle::MIN_VALUE) {
+        if is_small(gc_length.abs().0, great_circle::MIN_VALUE) {
             (point, pole)
         } else {
             let length = Angle::from(gc_length);
@@ -695,7 +718,7 @@ impl<'a> Geodesic<'a> {
             let point = unit_sphere::vector::to_point(beta, lon);
 
             // if point is on a meridional Geodesic use auxiliary sphere point and pole
-            if is_small(libm::fabs(self.azi0.sin().0), great_circle::MIN_VALUE) {
+            if is_small(self.azi0.sin().abs().0, great_circle::MIN_VALUE) {
                 (point, pole)
             } else {
                 // Note: point cannot be at North pole, since it is not on a meridional Geodesic
@@ -712,7 +735,8 @@ impl<'a> Geodesic<'a> {
     }
 
     /// Calculate along and across track distances to a position from a geodesic.
-    /// * `position` the position as a `LatLong`
+    /// * `beta` the latitude of the position
+    /// * `lon` the longitude of the position
     /// * `precision` the required precision
     ///
     /// returns the along and across track distances to the position in `Radians`.
@@ -720,15 +744,13 @@ impl<'a> Geodesic<'a> {
     #[must_use]
     pub fn calculate_aux_atd_and_xtd(
         &self,
-        position: &LatLong,
+        beta: Angle,
+        lon: Angle,
         precision: Radians,
     ) -> (Radians, Radians, u32) {
         const MAX_ITERATIONS: u32 = 10;
 
         // calculate the position as a point on the auxiliary sphere
-        let lat = Angle::from(position.lat());
-        let beta = self.ellipsoid.calculate_parametric_latitude(lat);
-        let lon = Angle::from(position.lon());
         let point = unit_sphere::vector::to_point(beta, lon);
 
         // calculate the start point and pole of the geodesic on the auxiliary sphere
@@ -742,23 +764,22 @@ impl<'a> Geodesic<'a> {
         } else {
             // estimate initial along track distance on the auxiliary sphere
             let (mut atd, mut xtd) = unit_sphere::vector::calculate_atd_and_xtd(&a, &pole, &point);
-
             let mut iterations = 1;
             while iterations < MAX_ITERATIONS {
                 // calculate the position and azimuth at atd along the Geodesic
-                let lat_x = self.aux_latitude(atd);
+                let beta_x = self.aux_beta(Angle::from(atd));
                 let lon_x = self.aux_longitude(atd);
                 let azi_x = self.aux_azimuth(atd);
 
                 // calculate the geodesic azimuth and length to the point from the Geodesic position at atd
                 let (azi_p, length) =
-                    geodesic::aux_sphere_azimuth_length(lat_x, lat, lon - lon_x, self.ellipsoid);
+                    geodesic::aux_sphere_azimuth_length(beta_x, beta, lon - lon_x, self.ellipsoid);
                 let delta_azi = azi_x - azi_p;
                 let delta_atd = trig::spherical_cosine_rule(delta_azi.cos(), length);
                 atd = atd + delta_atd;
                 xtd = length;
 
-                if is_small(libm::fabs(delta_atd.0), precision.0) {
+                if is_small(delta_atd.abs().0, precision.0) {
                     break;
                 }
 
@@ -830,8 +851,15 @@ impl<'a> Geodesic<'a> {
         // convert precision to Radians
         let precision = Radians(precision.0 / self.ellipsoid.a().0);
 
-        let (atd, xtd, iterations) = self.calculate_aux_atd_and_xtd(position, precision);
+        // calculate the parametric latitude and longitude of the position
+        let beta = self
+            .ellipsoid
+            .calculate_parametric_latitude(Angle::from(position.lat()));
+        let lon = Angle::from(position.lon());
 
+        let (atd, xtd, iterations) = self.calculate_aux_atd_and_xtd(beta, lon, precision);
+
+        // calculate the parametric latitude and azimuth at the abeam point
         let beta = self.aux_beta(Angle::from(atd));
         let alpha = self.aux_azimuth(atd).quarter_turn_ccw();
         (
@@ -882,6 +910,7 @@ impl<'a> From<(&LatLong, &LatLong, &'a Ellipsoid)> for Geodesic<'a> {
 /// Calculate the distances along a pair of Geodesics (in Radians) to their
 /// closest intersection or reference points.
 /// * `g1`, `g2` the Geodesics.
+/// * `precision` the precision in `Radians`
 ///
 /// returns the distances along the Geodesics to the intersection point or to
 /// their closest (reference) points if the Geodesics do not intersect.
@@ -889,50 +918,16 @@ impl<'a> From<(&LatLong, &LatLong, &'a Ellipsoid)> for Geodesic<'a> {
 /// # Panics
 ///
 /// The function will panic if the Geodesics are **not** on the same `Ellipsoid`.
-///
-/// # Examples
-/// ```
-/// use icao_wgs84::*;
-/// use angle_sc::is_within_tolerance;
-///
-/// let wgs84_ellipsoid = Ellipsoid::wgs84();
-///
-/// let istanbul = LatLong::new(Degrees(42.0), Degrees(29.0));
-/// let washington = LatLong::new(Degrees(39.0), Degrees(-77.0));
-/// let reyjavik = LatLong::new(Degrees(64.0), Degrees(-22.0));
-/// let accra = LatLong::new(Degrees(6.0), Degrees(0.0));
-///
-/// let g1 = Geodesic::from((&istanbul, &washington, &wgs84_ellipsoid));
-/// let g2 = Geodesic::from((&reyjavik, &accra, &wgs84_ellipsoid));
-///
-/// // Calculate distances from the geodesic start points to the intersection point to 1mm precision.
-/// let (distance1, _distance2, iterations) =
-///     calculate_intersection_distances(&g1, &g2, Metres(1e-3));
-/// println!(
-///     "calculate_intersection_distances iterations: {:?}",
-///     iterations
-/// );
-///
-/// // Get the intersection point position
-/// // The expected latitude and longitude are from:
-/// // <https://sourceforge.net/p/geographiclib/discussion/1026621/thread/21aaff9f/#fe0a>
-/// let lat_lon = g1.aux_lat_long(distance1);
-/// assert!(is_within_tolerance(54.7170296089477, lat_lon.lat().0, 1e-6));
-/// assert!(is_within_tolerance(-14.56385574430775, lat_lon.lon().0, 1e-6));
-/// ```
 #[must_use]
-pub fn calculate_intersection_distances(
+pub fn calculate_intersection_aux_distances(
     g1: &Geodesic,
     g2: &Geodesic,
-    precision: Metres,
+    precision: Radians,
 ) -> (Radians, Radians, u32) {
     const MAX_ITERATIONS: u32 = 10;
 
     // Geodesic MUST be on the same `Ellipsoid`
     assert!(g1.ellipsoid() == g2.ellipsoid());
-
-    // Convert the precision to Radians
-    let precision = Radians(precision.0 / g1.ellipsoid().a().0);
 
     let a1_lat = g1.beta();
     let a1 = unit_sphere::vector::to_point(a1_lat, g1.lon());
@@ -1014,6 +1009,59 @@ pub fn calculate_intersection_distances(
             },
         )
     }
+}
+
+/// Calculate the distances along a pair of Geodesics (in Radians) to their
+/// closest intersection or reference points.
+/// * `g1`, `g2` the Geodesics.
+///
+/// returns the distances along the Geodesics to the intersection point or to
+/// their closest (reference) points if the Geodesics do not intersect.
+///
+/// # Panics
+///
+/// The function will panic if the Geodesics are **not** on the same `Ellipsoid`.
+///
+/// # Examples
+/// ```
+/// use icao_wgs84::*;
+/// use angle_sc::is_within_tolerance;
+///
+/// let wgs84_ellipsoid = Ellipsoid::wgs84();
+///
+/// let istanbul = LatLong::new(Degrees(42.0), Degrees(29.0));
+/// let washington = LatLong::new(Degrees(39.0), Degrees(-77.0));
+/// let reyjavik = LatLong::new(Degrees(64.0), Degrees(-22.0));
+/// let accra = LatLong::new(Degrees(6.0), Degrees(0.0));
+///
+/// let g1 = Geodesic::from((&istanbul, &washington, &wgs84_ellipsoid));
+/// let g2 = Geodesic::from((&reyjavik, &accra, &wgs84_ellipsoid));
+///
+/// // Calculate distances from the geodesic start points to the intersection point to 1mm precision.
+/// let (distance1, _distance2, iterations) =
+///     calculate_intersection_distances(&g1, &g2, Metres(1e-3));
+/// println!(
+///     "calculate_intersection_distances iterations: {:?}",
+///     iterations
+/// );
+///
+/// // Get the intersection point position
+/// // The expected latitude and longitude are from:
+/// // <https://sourceforge.net/p/geographiclib/discussion/1026621/thread/21aaff9f/#fe0a>
+/// let lat_lon = g1.aux_lat_long(distance1);
+/// assert!(is_within_tolerance(54.7170296089477, lat_lon.lat().0, 1e-6));
+/// assert!(is_within_tolerance(-14.56385574430775, lat_lon.lon().0, 1e-6));
+/// ```
+#[must_use]
+pub fn calculate_intersection_distances(
+    g1: &Geodesic,
+    g2: &Geodesic,
+    precision: Metres,
+) -> (Radians, Radians, u32) {
+    // Convert the precision to Radians
+    let precision = Radians(precision.0 / g1.ellipsoid().a().0);
+
+    calculate_intersection_aux_distances(g1, g2, precision)
 }
 
 #[cfg(test)]
@@ -1271,10 +1319,25 @@ mod tests {
 
         let mid_length = g1.metres_to_radians(half_length);
         assert_eq!(0.654673165141749, mid_length.0);
+        let mid_point = g1.mid_point();
+        let mid_beta = unit_sphere::vector::latitude(&mid_point);
+        let mid_lat = g1.ellipsoid().calculate_geodetic_latitude(mid_beta);
+        assert!(is_within_tolerance(
+            54.86379153725445,
+            Degrees::from(mid_lat).0,
+            64.0 * f64::EPSILON
+        ));
+
+        let mid_lon = unit_sphere::vector::longitude(&mid_point);
+        assert!(is_within_tolerance(
+            -25.694568908316413,
+            Degrees::from(mid_lon).0,
+            32.0 * f64::EPSILON
+        ));
 
         let precision = Radians(1e-3 / wgs84_ellipsoid.a().0);
-        let (atd, xtd, iterations) = g1.calculate_aux_atd_and_xtd(&mid_position, precision);
-        assert!(is_within_tolerance(mid_length.0, atd.0, precision.0));
+        let (atd, xtd, iterations) = g1.calculate_aux_atd_and_xtd(mid_beta, mid_lon, precision);
+        assert!(is_within_tolerance(mid_length.0, atd.0, f64::EPSILON));
         assert_eq!(0.0, xtd.0);
         println!("calculate_aux_atd_and_xtd iterations: {:?}", iterations);
 

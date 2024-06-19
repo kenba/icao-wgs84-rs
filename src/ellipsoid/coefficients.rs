@@ -215,7 +215,7 @@ pub fn sin_cos_series(coeffs: &[f64], angle: Angle) -> Radians {
     let angle2x = angle.double();
     let mut k0 = 0.0;
 
-    if f64::EPSILON <= libm::fabs(angle2x.sin().0) {
+    if angle2x.sin().abs().0 >= f64::EPSILON {
         let mut index = coeffs.len() - 1;
         let mut k1 = 0.0;
 
@@ -244,17 +244,14 @@ pub fn sin_cos_series(coeffs: &[f64], angle: Angle) -> Radians {
 
 #[cfg(test)]
 mod tests {
-
-    use crate::ellipsoid::calculate_3rd_flattening;
-    use crate::ellipsoid::calculate_sq_2nd_eccentricity;
-    use crate::ellipsoid::coefficients::*;
-    use crate::ellipsoid::wgs84::F;
+    use super::*;
+    use crate::ellipsoid::{calculate_3rd_flattening, calculate_sq_2nd_eccentricity, wgs84};
     use angle_sc::{Angle, Radians};
 
     #[test]
     fn test_evaluate_coeffs_a3() {
         // evaluate_coeffs_a3 for WGS 84 flattening
-        let n = calculate_3rd_flattening(F);
+        let n = calculate_3rd_flattening(wgs84::F);
         let a3 = evaluate_coeffs_a3(n);
 
         assert_eq!(1.0, a3[0]);
@@ -268,7 +265,7 @@ mod tests {
     #[test]
     fn test_evaluate_coeffs_c1() {
         // evaluate_coeffs_c1 for WGS 84 latitude 45.0
-        let eps45 = calculate_sq_2nd_eccentricity(F) / 2.0;
+        let eps45 = calculate_sq_2nd_eccentricity(wgs84::F) / 2.0;
         let c1 = evaluate_coeffs_c1(eps45);
 
         assert_eq!(0.0, c1[0]);
@@ -282,7 +279,7 @@ mod tests {
     #[test]
     fn test_evaluate_coeffs_c1p() {
         // evaluate_coeffs_c1 for WGS 84 latitude 45.0
-        let eps45 = calculate_sq_2nd_eccentricity(F) / 2.0;
+        let eps45 = calculate_sq_2nd_eccentricity(wgs84::F) / 2.0;
         let c1p = evaluate_coeffs_c1p(eps45);
 
         assert_eq!(0.0, c1p[0]);
@@ -295,7 +292,7 @@ mod tests {
     #[test]
     fn test_evaluate_coeffs_c2() {
         // evaluate_coeffs_c1 for WGS 84 latitude 45.0
-        let eps45 = calculate_sq_2nd_eccentricity(F) / 2.0;
+        let eps45 = calculate_sq_2nd_eccentricity(wgs84::F) / 2.0;
         let c2 = evaluate_coeffs_c2(eps45);
 
         assert_eq!(0.0, c2[0]);
@@ -310,7 +307,7 @@ mod tests {
     #[test]
     fn test_evaluate_coeffs_c3x() {
         // evaluate_coeffs_c3x for WGS 84 flattening
-        let n = calculate_3rd_flattening(F);
+        let n = calculate_3rd_flattening(wgs84::F);
         let c3x = evaluate_coeffs_c3x(n);
 
         assert_eq!(0.24958019490340408, c3x[0]);
@@ -333,8 +330,8 @@ mod tests {
     #[test]
     fn test_evaluate_coeffs_c3y() {
         // evaluate_coeffs_c3x for WGS 84 flattening
-        let n = calculate_3rd_flattening(F);
-        let eps45 = calculate_sq_2nd_eccentricity(F) / 2.0;
+        let n = calculate_3rd_flattening(wgs84::F);
+        let eps45 = calculate_sq_2nd_eccentricity(wgs84::F) / 2.0;
         let c3x = evaluate_coeffs_c3x(n);
         let c3y = evaluate_coeffs_c3y(&c3x, eps45);
 
@@ -349,8 +346,8 @@ mod tests {
     #[test]
     fn test_sin_cos_series_c3() {
         // evaluate_coeffs_c3x for WGS 84 flattening
-        let n = calculate_3rd_flattening(F);
-        let eps45 = calculate_sq_2nd_eccentricity(F) / 2.0;
+        let n = calculate_3rd_flattening(wgs84::F);
+        let eps45 = calculate_sq_2nd_eccentricity(wgs84::F) / 2.0;
         let c3x = evaluate_coeffs_c3x(n);
         let c3y = evaluate_coeffs_c3y(&c3x, eps45);
 
@@ -363,10 +360,10 @@ mod tests {
     #[test]
     fn test_evaluate_poynomial_a3() {
         // evaluate_coeffs_a3 for WGS 84 flattening
-        let n = calculate_3rd_flattening(F);
+        let n = calculate_3rd_flattening(wgs84::F);
         let a3 = evaluate_coeffs_a3(n);
 
-        let eps45 = calculate_sq_2nd_eccentricity(F) / 2.0;
+        let eps45 = calculate_sq_2nd_eccentricity(wgs84::F) / 2.0;
         let a3_eps = evaluate_polynomial(&a3, eps45);
 
         assert_eq!(0.9983151115073848, a3_eps);
