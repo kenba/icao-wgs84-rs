@@ -1,6 +1,6 @@
 [package]
 name = "icao-wgs84"
-version = "0.1.2"
+version = "0.1.3"
 authors = ["Ken Barker <ken.barker@via-technology.aero>"]
 description = "A library for performing geometric calculations on the WGS84 ellipsoid."
 documentation = "https://docs.rs/icao-wgs84/"
