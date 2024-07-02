@@ -26,7 +26,7 @@
 #![allow(clippy::many_single_char_names)]
 
 use crate::{ellipsoid, Ellipsoid, Metres};
-use angle_sc::{is_small, trig, trig::UnitNegRange, Angle, Radians};
+use angle_sc::{trig, trig::UnitNegRange, Angle, Radians};
 use unit_sphere::{great_circle, LatLong};
 
 /// Estimate omega12 by solving the astroid problem.
@@ -169,7 +169,7 @@ fn estimate_antipodal_initial_azimuth(
 /// latitude is very close to the equator.
 #[must_use]
 pub fn calculate_cos_omega(beta: Angle, cos_azimuth: UnitNegRange) -> UnitNegRange {
-    if is_small(beta.sin().abs().0, f64::EPSILON) {
+    if beta.sin().abs().0 < f64::EPSILON {
         UnitNegRange(1.0)
     } else {
         UnitNegRange(cos_azimuth.0 * beta.cos().0)
@@ -336,24 +336,24 @@ fn find_azimuth_and_aux_length(
 
         // Difference between differences
         let v = eta.0 - domg12;
-        if is_small(libm::fabs(v), MAX_PRECISION.0) {
+        if libm::fabs(v) < MAX_PRECISION.0 {
             break;
         }
 
         // Calculate the denominator for Newton's method
-        let dv = if is_small(alpha2.cos().abs().0, f64::EPSILON) {
+        let dv = if alpha2.cos().abs().0 < f64::EPSILON {
             -2.0 * ellipsoid.one_minus_f() * dn1 / beta1.sin().0
         } else {
             let m12 = calculate_reduced_length(eps, sigma12_rad, sigma1, dn1, sigma2, dn2);
             ellipsoid.one_minus_f() * m12 / (alpha2.cos().0 * beta2.cos().0)
         };
-        if is_small(libm::fabs(dv), MAX_PRECISION.0) {
+        if libm::fabs(dv) < MAX_PRECISION.0 {
             break;
         }
 
         // Calculate the change in initial azimuth
         let dalpha1 = UnitNegRange::clamp(-v / dv);
-        if is_small(dalpha1.abs().0, MAX_PRECISION.0) {
+        if dalpha1.abs().0 < MAX_PRECISION.0 {
             break;
         }
 
@@ -397,7 +397,7 @@ pub fn aux_sphere_azimuth_length(
     let gc_azimuth = great_circle::calculate_gc_azimuth(beta1, beta2, delta_long);
 
     // gc_azimuth is 0° or 180°
-    if is_small(gc_azimuth.abs().sin().0, great_circle::MIN_VALUE) {
+    if gc_azimuth.abs().sin().0 < great_circle::MIN_VALUE {
         // Calculate the meridian distance on the auxillary sphere
         let meridian_length = great_circle::calculate_gc_distance(beta1, beta2, delta_long);
         (gc_azimuth, meridian_length)
@@ -405,9 +405,9 @@ pub fn aux_sphere_azimuth_length(
         // Determine whether on an equatorial path, i.e. the circle around the equator.
         let gc_length = great_circle::calculate_gc_distance(beta1, beta2, delta_long);
         // gc_azimuth is +/-90° and both latitudes are very close to the equator
-        if is_small(gc_azimuth.cos().0, great_circle::MIN_VALUE)
-            && is_small(beta1.abs().sin().0, f64::EPSILON)
-            && is_small(beta2.abs().sin().0, f64::EPSILON)
+        if (gc_azimuth.cos().0 < great_circle::MIN_VALUE)
+            && (beta1.abs().sin().0 < f64::EPSILON)
+            && (beta2.abs().sin().0 < f64::EPSILON)
         {
             // Calculate the distance around the equator on the auxillary sphere
             let equatorial_length = Radians(gc_length.0 * ellipsoid.recip_one_minus_f());

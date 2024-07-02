@@ -98,7 +98,7 @@ pub use icao_units::non_si::NauticalMiles;
 pub use icao_units::si::Metres;
 pub use unit_sphere::LatLong;
 
-use angle_sc::{is_small, trig};
+use angle_sc::trig;
 use unit_sphere::{great_circle, Vector3d};
 
 /// The parameters of an `Ellipsoid`.  
@@ -432,7 +432,7 @@ impl<'a> Geodesic<'a> {
         let (azimuth, aux_length) = geodesic::calculate_azimuth_aux_length(a, b, ellipsoid);
         let a_lat = Angle::from(a.lat());
         // if a is at the North or South pole
-        if is_small(a_lat.cos().0, great_circle::MIN_VALUE) {
+        if a_lat.cos().0 < great_circle::MIN_VALUE {
             // use b's longitude
             Self::from_lat_lon_azi_aux_length(
                 &LatLong::new(a.lat(), b.lon()),
@@ -489,7 +489,7 @@ impl<'a> Geodesic<'a> {
     /// returns the distance in radians on the auxiliary sphere.
     #[must_use]
     pub fn metres_to_radians(&self, distance_m: Metres) -> Radians {
-        if is_small(libm::fabs(distance_m.0), great_circle::MIN_VALUE) {
+        if libm::fabs(distance_m.0) < great_circle::MIN_VALUE {
             Radians(0.0)
         } else {
             let tau12 = Radians(distance_m.0 / (self.ellipsoid.b().0 * self.a1));
@@ -508,7 +508,7 @@ impl<'a> Geodesic<'a> {
     /// returns the distance in metres on the ellipsoid.
     #[must_use]
     pub fn radians_to_metres(&self, gc_distance: Radians) -> Metres {
-        if is_small(gc_distance.abs().0, great_circle::MIN_VALUE) {
+        if gc_distance.abs().0 < great_circle::MIN_VALUE {
             Metres(0.0)
         } else {
             let sigma_sum = self.sigma1 + Angle::from(gc_distance);
@@ -566,7 +566,7 @@ impl<'a> Geodesic<'a> {
     pub fn aux_azimuth(&self, gc_length: Radians) -> Angle {
         const MAX_LAT: f64 = 1.0 - great_circle::MIN_VALUE;
 
-        if is_small(gc_length.abs().0, great_circle::MIN_VALUE) {
+        if gc_length.abs().0 < great_circle::MIN_VALUE {
             self.azi
         } else {
             let length = Angle::from(gc_length);
@@ -600,7 +600,7 @@ impl<'a> Geodesic<'a> {
     #[allow(clippy::similar_names)]
     #[must_use]
     pub fn delta_longitude(&self, gc_length: Radians) -> Angle {
-        if is_small(gc_length.abs().0, great_circle::MIN_VALUE) {
+        if gc_length.abs().0 < great_circle::MIN_VALUE {
             Angle::default()
         } else {
             // The great circle distance from Northward Equator crossing.
@@ -670,7 +670,7 @@ impl<'a> Geodesic<'a> {
     /// returns the point on the auxiliary sphere at `gc_length`.
     #[must_use]
     pub fn aux_point(&self, gc_length: Radians) -> Vector3d {
-        if is_small(gc_length.abs().0, great_circle::MIN_VALUE) {
+        if gc_length.abs().0 < great_circle::MIN_VALUE {
             unit_sphere::vector::to_point(self.beta, self.lon)
         } else {
             let beta: Angle = self.aux_beta(Angle::from(gc_length));
@@ -696,7 +696,7 @@ impl<'a> Geodesic<'a> {
         let point = unit_sphere::vector::to_point(self.beta, self.lon);
         let pole = unit_sphere::vector::calculate_pole(self.beta, self.lon, self.azi);
         // If at the start of the geodesic
-        if is_small(gc_length.abs().0, great_circle::MIN_VALUE) {
+        if gc_length.abs().0 < great_circle::MIN_VALUE {
             (point, pole)
         } else {
             let length = Angle::from(gc_length);
@@ -705,7 +705,7 @@ impl<'a> Geodesic<'a> {
             let point = unit_sphere::vector::to_point(beta, lon);
 
             // if point is on a meridional Geodesic use auxiliary sphere point and pole
-            if is_small(self.azi0.sin().abs().0, great_circle::MIN_VALUE) {
+            if self.azi0.sin().abs().0 < great_circle::MIN_VALUE {
                 (point, pole)
             } else {
                 // Note: point cannot be at North pole, since it is not on a meridional Geodesic
@@ -746,7 +746,7 @@ impl<'a> Geodesic<'a> {
             unit_sphere::great_circle::e2gc_distance(unit_sphere::vector::distance(&a, &point));
 
         // if the point is close to the start point of the Geodesic
-        if is_small(gc_d, precision) {
+        if gc_d < precision {
             (Radians(0.0), Radians(0.0), 0)
         } else {
             // estimate initial along track distance on the auxiliary sphere
@@ -766,14 +766,14 @@ impl<'a> Geodesic<'a> {
                 atd = atd + delta_atd;
                 xtd = length;
 
-                if is_small(delta_atd.abs().0, precision.0) {
+                if delta_atd.abs().0 < precision.0 {
                     break;
                 }
 
                 iterations += 1;
             }
             // get the cross track distance (and sign) at the along track distance
-            xtd = if is_small(xtd, precision) {
+            xtd = if xtd < precision {
                 Radians(0.0)
             } else {
                 let (_a, pole) = self.aux_point_and_pole(atd);
@@ -1251,7 +1251,7 @@ mod tests {
 
         let (atd, xtd, iterations) = g1.calculate_atd_and_xtd(&mid_position, Metres(1e-3));
         assert!(is_within_tolerance(half_length.0, atd.0, 1e-3));
-        assert!(is_small(libm::fabs(xtd.0), 1e-3));
+        assert!(libm::fabs(xtd.0) < 1e-3);
         println!("calculate_atd_and_xtd iterations: {:?}", iterations);
     }
 
