@@ -56,22 +56,8 @@
 //!
 //! *Figure 2 A geodesic between points A and B*
 //!
-//! [Karney(2013)](https://link.springer.com/article/10.1007/s00190-012-0578-z)
-//! solves geodesic problems by mapping a geodesic onto the auxiliary sphere
-//! and then solving the corresponding problem in
-//! [great-circle navigation](https://en.wikipedia.org/wiki/Great-circle_navigation).
-//!
-//! [Baselga and Martinez-Llario(2017)](https://www.researchgate.net/publication/321358300_Intersection_and_point-to-line_solutions_for_geodesics_on_the_ellipsoid)
-//! solve geodesic intersection and point-to-line problems by using the
-//! correspondence between geodesics on an ellipsoid and great-circles on the
-//! auxiliary sphere.
-//!
-//! Nick Korbey and I [Barker and Korbey(2019)](https://www.researchgate.net/publication/335749834_Geodesic_Geometry) developed Baselga and Martinez-Llario's algorithms
-//! by using vectors to solve geodesic intersection and point-to-line problems on
-//! the auxiliary sphere.
-//!
-//! This library also uses the correspondence between geodesics on an ellipsoid
-//! and great-circles on the auxiliary sphere together with 3D vectors to calculate:
+//! This library uses the correspondence between geodesics on an ellipsoid and
+//! great-circles on the auxiliary sphere together with 3D vectors to calculate:
 //!
 //! - the initial azimuth and length of a geodesic between two positions;
 //! - the along track distance and across track distance of a position relative to a geodesic;
@@ -105,6 +91,7 @@ extern crate unit_sphere;
 
 pub mod ellipsoid;
 pub mod geodesic;
+pub mod intersection;
 
 pub use angle_sc::{Angle, Degrees, Radians, Validate};
 pub use icao_units::non_si::NauticalMiles;
@@ -910,117 +897,38 @@ impl<'a> From<(&LatLong, &LatLong, &'a Ellipsoid)> for Geodesic<'a> {
 /// Calculate the distances along a pair of Geodesics (in Radians) to their
 /// closest intersection or reference points.
 /// * `g1`, `g2` the Geodesics.
-/// * `precision` the precision in `Radians`
+/// * `precision` the precision in `Metres`
 ///
 /// returns the distances along the Geodesics to the intersection point or to
-/// their closest (reference) points if the Geodesics do not intersect.
+/// their closest (reference) points if the Geodesics do not intersect and
+/// the number of iterations required.
 ///
 /// # Panics
 ///
 /// The function will panic if the Geodesics are **not** on the same `Ellipsoid`.
 #[must_use]
-pub fn calculate_intersection_aux_distances(
+pub fn calculate_intersection_distances(
     g1: &Geodesic,
     g2: &Geodesic,
-    precision: Radians,
-) -> (Radians, Radians, u32) {
-    const MAX_ITERATIONS: u32 = 10;
-
-    // Geodesic MUST be on the same `Ellipsoid`
-    assert!(g1.ellipsoid() == g2.ellipsoid());
-
-    let a1_lat = g1.beta();
-    let a1 = unit_sphere::vector::to_point(a1_lat, g1.lon());
-
-    let a2_lat = g2.beta();
-    let a2 = unit_sphere::vector::to_point(a2_lat, g2.lon());
-    let gc_d = unit_sphere::great_circle::e2gc_distance(unit_sphere::vector::distance(&a1, &a2));
-
-    // if the start points are within precision of each other
-    if is_small(gc_d, precision) {
-        (Radians(0.0), Radians(0.0), 0)
-    } else {
-        let pole1 = unit_sphere::vector::calculate_pole(a1_lat, g1.lon(), g1.azi());
-        let pole2 = unit_sphere::vector::calculate_pole(a2_lat, g2.lon(), g2.azi());
-
-        let length1 = g1.aux_length();
-        let length2 = g2.aux_length();
-
-        let c = unit_sphere::vector::intersection::calculate_intersection_point(&pole1, &pole2);
-        c.map_or_else(
-            || {
-                let distances =
-                    unit_sphere::vector::intersection::calculate_same_gc_reference_distances(
-                        &a1, &pole1, length1, &a2, &pole2, length2, gc_d,
-                    );
-                (distances.0, distances.1, 0)
-            },
-            |c| {
-                let (mut distance1, mut distance2, use_other_intersection) =
-                    unit_sphere::vector::intersection::calculate_closest_intersection_distances(
-                        &a1, &pole1, length1, &a2, &pole2, length2, &c,
-                    );
-
-                if use_other_intersection {
-                    distance1 = distance1 + Radians(core::f64::consts::PI);
-                    distance2 = distance2 + Radians(core::f64::consts::PI);
-                }
-
-                // Convert precision in radians to the square of Euclidean precision.
-                let e_precision = unit_sphere::great_circle::gc2e_distance(precision);
-                let sq_precision = e_precision * e_precision;
-
-                let mut iterations = 1;
-
-                while iterations < MAX_ITERATIONS {
-                    let (pos1, pole1) = g1.aux_point_and_pole(distance1);
-                    let (pos2, pole2) = g2.aux_point_and_pole(distance2);
-
-                    let sq_d = unit_sphere::vector::sq_distance(&pos1, &pos2);
-                    if is_small(sq_d, sq_precision) {
-                        break;
-                    }
-
-                    iterations += 1;
-
-                    let x = if use_other_intersection {
-                        unit_sphere::vector::intersection::calculate_intersection_point(
-                            &pole2, &pole1,
-                        )
-                    } else {
-                        unit_sphere::vector::intersection::calculate_intersection_point(
-                            &pole1, &pole2,
-                        )
-                    };
-                    match x {
-                        Some(x) => {
-                            let (delta1, delta2) =
-                                unit_sphere::vector::intersection::calculate_intersection_distances(
-                                    &pos1, &pole1, &pos2, &pole2, &x,
-                                );
-                            distance1 = distance1 + delta1;
-                            distance2 = distance2 + delta2;
-                        }
-                        None => break,
-                    }
-                }
-
-                (distance1, distance2, iterations)
-            },
-        )
-    }
+    precision: Metres,
+) -> (Radians, Radians) {
+    let precision = Radians(precision.0 / g1.ellipsoid().a().0);
+    let (distance1, distance2, _) =
+        intersection::calculate_aux_intersection_distances(g1, g2, precision);
+    (distance1, distance2)
 }
 
-/// Calculate the distances along a pair of Geodesics (in Radians) to their
-/// closest intersection or reference points.
-/// * `g1`, `g2` the Geodesics.
+/// Calculate the position (Latitude and Longitude) where a pair of `Geodesic`s
+/// intersect, or None if the `Geodesic`s do not intersect.
+/// * `g1`, `g2` the `Geodesic`s.
+/// * `precision` the precision in `Metres`
 ///
 /// returns the distances along the Geodesics to the intersection point or to
 /// their closest (reference) points if the Geodesics do not intersect.
 ///
 /// # Panics
 ///
-/// The function will panic if the Geodesics are **not** on the same `Ellipsoid`.
+/// The function will panic if the `Geodesic`s are **not** on the same `Ellipsoid`.
 ///
 /// # Examples
 /// ```
@@ -1037,31 +945,31 @@ pub fn calculate_intersection_aux_distances(
 /// let g1 = Geodesic::from((&istanbul, &washington, &wgs84_ellipsoid));
 /// let g2 = Geodesic::from((&reyjavik, &accra, &wgs84_ellipsoid));
 ///
-/// // Calculate distances from the geodesic start points to the intersection point to 1mm precision.
-/// let (distance1, _distance2, iterations) =
-///     calculate_intersection_distances(&g1, &g2, Metres(1e-3));
-/// println!(
-///     "calculate_intersection_distances iterations: {:?}",
-///     iterations
-/// );
-///
-/// // Get the intersection point position
+/// // Calculate the intersection point position
 /// // The expected latitude and longitude are from:
 /// // <https://sourceforge.net/p/geographiclib/discussion/1026621/thread/21aaff9f/#fe0a>
-/// let lat_lon = g1.aux_lat_long(distance1);
+/// let result = calculate_intersection_point(&g1, &g2, Metres(1e-3));
+/// let lat_lon = result.unwrap();
+///
 /// assert!(is_within_tolerance(54.7170296089477, lat_lon.lat().0, 1e-6));
 /// assert!(is_within_tolerance(-14.56385574430775, lat_lon.lon().0, 1e-6));
 /// ```
 #[must_use]
-pub fn calculate_intersection_distances(
+pub fn calculate_intersection_point(
     g1: &Geodesic,
     g2: &Geodesic,
     precision: Metres,
-) -> (Radians, Radians, u32) {
-    // Convert the precision to Radians
-    let precision = Radians(precision.0 / g1.ellipsoid().a().0);
+) -> Option<LatLong> {
+    let (distance1, distance2) = calculate_intersection_distances(g1, g2, precision);
 
-    calculate_intersection_aux_distances(g1, g2, precision)
+    // Determine whether both distances are within both `Geodesic`s.
+    if unit_sphere::vector::intersection::is_within(distance1.0, g1.aux_length().0)
+        && unit_sphere::vector::intersection::is_within(distance2.0, g2.aux_length().0)
+    {
+        Some(g1.aux_lat_long(distance1))
+    } else {
+        None
+    }
 }
 
 #[cfg(test)]
@@ -1469,31 +1377,10 @@ mod tests {
         let g1 = Geodesic::from((&istanbul, &washington, &wgs84_ellipsoid));
         let g2 = Geodesic::from((&reyjavik, &accra, &wgs84_ellipsoid));
 
-        let (distance1, distance2, iterations) =
-            calculate_intersection_distances(&g1, &g2, Metres(1e-3));
-        println!(
-            "calculate_intersection_distances iterations: {:?}",
-            iterations
-        );
-        assert_eq!(0.5423772210660033, distance1.0);
-        assert_eq!(0.17504915893240863, distance2.0);
+        let result = calculate_intersection_point(&g1, &g2, Metres(1e-3));
+        let lat_lon = result.unwrap();
 
-        let lat_lon = g1.aux_lat_long(distance1);
-        // Geodesic intersection latitude is 54.7170296089477
         assert!(is_within_tolerance(54.7170296089477, lat_lon.lat().0, 1e-6));
-
-        // Geodesic intersection longitude is -14.56385574430775
-        assert!(is_within_tolerance(
-            -14.56385574430775,
-            lat_lon.lon().0,
-            1e-6
-        ));
-
-        let lat_lon = g2.aux_lat_long(distance2);
-        // Geodesic intersection latitude is 54.7170296089477
-        assert!(is_within_tolerance(54.7170296089477, lat_lon.lat().0, 1e-6));
-
-        // Geodesic intersection longitude is -14.56385574430775
         assert!(is_within_tolerance(
             -14.56385574430775,
             lat_lon.lon().0,
@@ -1501,77 +1388,14 @@ mod tests {
         ));
 
         // Swap geodesics
-        let (distance1, distance2, iterations) =
-            calculate_intersection_distances(&g2, &g1, Metres(1e-3));
-        println!(
-            "calculate_intersection_distances iterations: {:?}",
-            iterations
-        );
-        assert_eq!(0.1750491589330442, distance1.0);
-        assert_eq!(0.5423772210601135, distance2.0);
+        let result = calculate_intersection_point(&g2, &g1, Metres(1e-3));
+        let lat_lon = result.unwrap();
 
-        let lat_lon = g2.aux_lat_long(distance1);
-        // Geodesic intersection latitude is 54.7170296089477
         assert!(is_within_tolerance(54.7170296089477, lat_lon.lat().0, 1e-6));
-
-        // Geodesic intersection longitude is -14.56385574430775
         assert!(is_within_tolerance(
             -14.56385574430775,
             lat_lon.lon().0,
             1e-6
         ));
-
-        let lat_lon = g1.aux_lat_long(distance2);
-        // Geodesic intersection latitude is 54.7170296089477
-        assert!(is_within_tolerance(54.7170296089477, lat_lon.lat().0, 1e-6));
-
-        // Geodesic intersection longitude is -14.56385574430775
-        assert!(is_within_tolerance(
-            -14.56385574430775,
-            lat_lon.lon().0,
-            1e-6
-        ));
-    }
-
-    #[test]
-    fn test_intersection_same_start_point() {
-        let wgs84_ellipsoid = Ellipsoid::wgs84();
-
-        // A Geodesic along the Greenwich meridian, over the North pole and down the IDL
-        let a = LatLong::new(Degrees(45.0), Degrees(0.0));
-        let b = LatLong::new(Degrees(45.0), Degrees(180.0));
-        let g1 = Geodesic::from((&a, &b, &wgs84_ellipsoid));
-
-        let c = LatLong::new(Degrees(45.0), Degrees(45.0));
-        let g2 = Geodesic::from((&a, &c, &wgs84_ellipsoid));
-
-        let (distance1, distance2, iterations) =
-            calculate_intersection_distances(&g1, &g2, Metres(1e-3));
-        println!(
-            "calculate_intersection_distances iterations: {:?}",
-            iterations
-        );
-        assert_eq!(0.0, distance1.0);
-        assert_eq!(0.0, distance2.0);
-    }
-
-    #[test]
-    fn test_non_intersection_same_geodesic() {
-        let wgs84_ellipsoid = Ellipsoid::wgs84();
-
-        // A Geodesic along the Greenwich meridian, over the North pole and down the IDL
-        let a = LatLong::new(Degrees(45.0), Degrees(0.0));
-        let b = LatLong::new(Degrees(50.0), Degrees(0.0));
-        let g1 = Geodesic::from((&a, &b, &wgs84_ellipsoid));
-
-        let c = LatLong::new(Degrees(55.0), Degrees(0.0));
-        let d = LatLong::new(Degrees(60.0), Degrees(0.0));
-        let g2 = Geodesic::from((&c, &d, &wgs84_ellipsoid));
-
-        let (distance1, distance2, iterations) =
-            calculate_intersection_distances(&g1, &g2, Metres(1e-3));
-        assert_eq!(0.17463328753266863, distance1.0);
-        assert_eq!(0.0, distance2.0);
-        assert_eq!(0, iterations);
     }
 }

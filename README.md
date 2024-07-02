@@ -36,22 +36,6 @@ sphere, see *Figure 2*.
 
 *Figure 2 A geodesic between points A and B*
 
-[Karney(2013)](https://link.springer.com/article/10.1007/s00190-012-0578-z)
-solves geodesic problems by mapping a geodesic onto the auxiliary sphere
-and then solving the corresponding problem in
-[great-circle navigation](https://en.wikipedia.org/wiki/Great-circle_navigation).
-Karney solves geodesic intersection and point-to-line problems using a planar
-gnomonic projection.
-
-[Baselga and Martinez-Llario(2017)](https://www.researchgate.net/publication/321358300_Intersection_and_point-to-line_solutions_for_geodesics_on_the_ellipsoid)
-solve geodesic intersection and point-to-line problems by using the
-correspondence between geodesics on an ellipsoid and great-circles on the
-auxiliary sphere.
-
-Nick Korbey and I [Barker and Korbey(2019)](https://www.researchgate.net/publication/335749834_Geodesic_Geometry) developed Baselga and Martinez-Llario's algorithms
-by using vectors to solve geodesic intersection and point-to-line problems on
-the auxiliary sphere.
-
 This library uses the correspondence between geodesics on an ellipsoid
 and great-circles on the auxiliary sphere together with 3D vectors to calculate:
 
@@ -143,7 +127,7 @@ In practice, precision should be determined from position accuracy.
 Higher precision requires more iterations and therefore takes longer to
 calculate the result.
 
-### Calculate geodesic intersection
+### Calculate geodesic intersection point
 
 Create two `Geodesic`s, each between two positions and then calculate the
 distances from the geodesic start points to their intersection point.
@@ -172,16 +156,11 @@ let accra = LatLong::new(Degrees(6.0), Degrees(0.0));
 let g1 = Geodesic::from((&istanbul, &washington, &wgs84_ellipsoid));
 let g2 = Geodesic::from((&reyjavik, &accra, &wgs84_ellipsoid));
 
-// Calculate distances from the geodesic start points to the intersection point to 1mm precision.
-let (distance1, _distance2, iterations) =
-    calculate_intersection_distances(&g1, &g2, Metres(1e-3));
-println!(
-    "calculate_intersection_distances iterations: {:?}",
-    iterations
-);
+// Calculate the intersection point position
+let result = calculate_intersection_point(&g1, &g2, Metres(1e-3));
 
 // Get the intersection point position
-let lat_lon = g1.aux_lat_long(distance1);
+let lat_lon = result.unwrap();
 assert!(is_within_tolerance(54.7170296089477, lat_lon.lat().0, 1e-6));
 assert!(is_within_tolerance(-14.56385574430775, lat_lon.lon().0, 1e-6));
 ```
