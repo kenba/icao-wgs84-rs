@@ -260,6 +260,19 @@ impl Ellipsoid {
     pub fn calculate_geodetic_latitude(&self, beta: Angle) -> Angle {
         ellipsoid::calculate_geodetic_latitude(beta, self.one_minus_f)
     }
+
+    /// Convert a geodetic latitude and longitude to a point on the
+    /// auxiliary sphere.
+    /// @pre |lat| <= 90.0 degrees.
+    /// * `lat` - the latitude.
+    /// * `lon` - the longitude.
+    ///
+    /// returns a `Vector3d` of the point on the auxiliary sphere.
+    #[must_use]
+    pub fn to_aux_point(&self, lat: Angle, lon: Angle) -> Vector3d {
+        let beta = self.calculate_parametric_latitude(lat);
+        unit_sphere::vector::to_point(beta, lon)
+    }
 }
 
 // A static instance of the WGS 84 `Ellipsoid`.
@@ -1000,6 +1013,14 @@ mod tests {
             ellipsoid::calculate_3rd_flattening(ellipsoid::wgs84::F),
             geoid.n()
         );
+
+        let point = geoid.to_aux_point(Angle::from(Degrees(45.0)), Angle::from(Degrees(45.0)));
+        assert!(is_within_tolerance(
+            44.903787849420226,
+            Degrees::from(unit_sphere::vector::latitude(&point)).0,
+            f64::EPSILON
+        ));
+        assert_eq!(45.0, Degrees::from(unit_sphere::vector::longitude(&point)).0);
     }
 
     #[test]
@@ -1113,7 +1134,7 @@ mod tests {
             assert!(is_within_tolerance(
                 Radians::from(azimuth).0,
                 Radians::from(azi0).0,
-                2.0 * std::f64::EPSILON
+                2.0 * f64::EPSILON
             ));
 
             let len0 = geodesic1.length();
@@ -1125,7 +1146,7 @@ mod tests {
             assert!(is_within_tolerance(
                 Radians::from(azimuth).0,
                 Radians::from(azi0).0,
-                2.0 * std::f64::EPSILON
+                2.0 * f64::EPSILON
             ));
 
             let len0 = geodesic2.aux_length();
@@ -1173,6 +1194,23 @@ mod tests {
             istanbul.lon().0,
             lat_long.lon().0,
             32.0 * f64::EPSILON
+        ));
+
+        // test start point
+        let start_point = g1.aux_point(Radians(0.0));
+        assert!(is_within_tolerance(
+            istanbul.lat().0,
+            Degrees::from(
+                g1.ellipsoid()
+                    .calculate_geodetic_latitude(unit_sphere::vector::latitude(&start_point))
+            )
+            .0,
+            32.0 * f64::EPSILON
+        ));
+        assert!(is_within_tolerance(
+            istanbul.lon().0,
+            Degrees::from(unit_sphere::vector::longitude(&start_point)).0,
+            16.0 * f64::EPSILON
         ));
 
         let (atd, xtd, iterations) = g1.calculate_atd_and_xtd(&istanbul, Metres(1e-3));
@@ -1377,5 +1415,19 @@ mod tests {
             lat_lon.lon().0,
             1e-6
         ));
+    }
+
+    #[test]
+    fn test_intersection_point_non_intersecting() {
+        let istanbul = LatLong::new(Degrees(42.0), Degrees(29.0));
+        let washington = LatLong::new(Degrees(39.0), Degrees(-77.0));
+        let reyjavik = LatLong::new(Degrees(64.0), Degrees(-22.0));
+        let accra = LatLong::new(Degrees(6.0), Degrees(0.0));
+
+        let g1 = Geodesic::from((&istanbul, &accra));
+        let g2 = Geodesic::from((&reyjavik, &washington));
+
+        let result = calculate_intersection_point(&g1, &g2, Metres(1e-3));
+        assert!(result.is_none());
     }
 }
