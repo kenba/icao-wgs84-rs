@@ -66,10 +66,15 @@
 //! ## Design
 //!
 //! The library is based on Charles Karney's [GeographicLib](https://geographiclib.sourceforge.io/) library.
+//!
 //! Like `GeographicLib`, it models geodesic paths as great circles on
 //! the surface of an auxiliary sphere. However, it also uses vectors to
 //! calculate along track distances, across track distances and
 //! intersections between geodesics.
+//!
+//! The `Ellipsoid` class represents an ellipsoid of revolution.  
+//! The static `WGS84_ELLIPSOID` represents the WGS 84 `Ellipsoid` which is used
+//! by the `Geodesic` `From` traits to create `Geodesic`s on the WGS 84 `Ellipsoid`.
 //!
 //! The library depends upon the following crates:
 //!
@@ -99,10 +104,10 @@ pub use icao_units::si::Metres;
 pub use unit_sphere::LatLong;
 
 use angle_sc::trig;
+use lazy_static::lazy_static;
 use unit_sphere::{great_circle, Vector3d};
 
 /// The parameters of an `Ellipsoid`.  
-/// The default value is the WGS84 `Ellipsoid`.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Ellipsoid {
     /// The Semimajor axis of the ellipsoid.
@@ -257,13 +262,12 @@ impl Ellipsoid {
     }
 }
 
-/// A default `Ellipsoid`: WGS 84.
-impl Default for Ellipsoid {
-    /// Construct an `Ellipsoid` with the WGS 84 parameters.
-    #[must_use]
-    fn default() -> Self {
-        Self::wgs84()
-    }
+// A static instance of the WGS 84 `Ellipsoid`.
+// Note: uses [lazy_static](https://crates.io/crates/lazy_static)
+// instead of [std::sync::OnceLock](https://doc.rust-lang.org/std/sync/struct.OnceLock.html)
+// because this crate is `no_std`.
+lazy_static! {
+    pub static ref WGS84_ELLIPSOID: Ellipsoid = Ellipsoid::wgs84();
 }
 
 /// Calculate the azimuth and geodesic length (in metres) between a pair
@@ -277,11 +281,9 @@ impl Default for Ellipsoid {
 /// ```
 /// use icao_wgs84::*;
 ///
-/// let wgs84_ellipsoid = Ellipsoid::wgs84();
-///
 /// let istanbul = LatLong::new(Degrees(42.0), Degrees(29.0));
 /// let washington = LatLong::new(Degrees(39.0), Degrees(-77.0));
-/// let (azimuth, length) = calculate_azimuth_and_geodesic_length(&istanbul, &washington, &wgs84_ellipsoid);
+/// let (azimuth, length) = calculate_azimuth_and_geodesic_length(&istanbul, &washington, &WGS84_ELLIPSOID);
 ///
 /// let azimuth_degrees = Degrees::from(azimuth);
 /// println!("Istanbul-Washington initial azimuth: {:?}", azimuth_degrees.0);
@@ -794,11 +796,9 @@ impl<'a> Geodesic<'a> {
     /// use icao_wgs84::*;
     /// use angle_sc::is_within_tolerance;
     ///
-    /// let wgs84_ellipsoid = Ellipsoid::wgs84();
-    ///
     /// let istanbul = LatLong::new(Degrees(42.0), Degrees(29.0));
     /// let washington = LatLong::new(Degrees(39.0), Degrees(-77.0));
-    /// let g1 = Geodesic::between_positions(&istanbul, &washington, &wgs84_ellipsoid);
+    /// let g1 = Geodesic::between_positions(&istanbul, &washington, &WGS84_ELLIPSOID);
     ///
     /// let azimuth_degrees = Degrees::from(g1.azimuth(Metres(0.0)));
     /// println!("Istanbul-Washington initial azimuth: {:?}", azimuth_degrees.0);
@@ -857,40 +857,40 @@ impl<'a> Geodesic<'a> {
     }
 }
 
-impl<'a> From<(&LatLong, Angle, Radians, &'a Ellipsoid)> for Geodesic<'a> {
-    /// Construct a `Geodesic` using the "direct" method.  
+impl<'a> From<(&LatLong, Angle, Radians)> for Geodesic<'a> {
+    /// Construct a `Geodesic` on the WGS 84  `Ellipsoid` using the "direct"
+    /// method with the length in `Radians`.
     /// @pre |lat| <= 90.0 degrees.
     /// * `a` - the start position in geodetic coordinates.
     /// * `azimuth` - the azimuth at the start position.
     /// * `aux_length` - the Great Circle length on the auxiliary sphere in radians.
-    /// * `ellipsoid` - a reference to the `Ellipsoid`.
     #[must_use]
-    fn from(params: (&LatLong, Angle, Radians, &'a Ellipsoid)) -> Self {
-        Geodesic::from_lat_lon_azi_aux_length(params.0, params.1, params.2, params.3)
+    fn from(params: (&LatLong, Angle, Radians)) -> Self {
+        Geodesic::from_lat_lon_azi_aux_length(params.0, params.1, params.2, &WGS84_ELLIPSOID)
     }
 }
 
-impl<'a> From<(&LatLong, Angle, Metres, &'a Ellipsoid)> for Geodesic<'a> {
-    /// Construct a `Geodesic` using the "direct" method with the length in metres.  
+impl<'a> From<(&LatLong, Angle, Metres)> for Geodesic<'a> {
+    /// Construct a `Geodesic` on the WGS 84 `Ellipsoid` using the "direct"
+    /// method with the length in metres.  
     /// @pre |lat| <= 90.0 degrees.
     /// * `a` - the start position in geodetic coordinates.
     /// * `azimuth` - the azimuth at the start position.
     /// * `length` - the length on the `Ellipsoid` in metres.
-    /// * `ellipsoid` - a reference to the `Ellipsoid`.
     #[must_use]
-    fn from(params: (&LatLong, Angle, Metres, &'a Ellipsoid)) -> Self {
-        Geodesic::from_lat_lon_azi_length(params.0, params.1, params.2, params.3)
+    fn from(params: (&LatLong, Angle, Metres)) -> Self {
+        Geodesic::from_lat_lon_azi_length(params.0, params.1, params.2, &WGS84_ELLIPSOID)
     }
 }
 
-impl<'a> From<(&LatLong, &LatLong, &'a Ellipsoid)> for Geodesic<'a> {
-    /// Construct a `Geodesic` between a pair of positions, the "indirect" method.  
+impl<'a> From<(&LatLong, &LatLong)> for Geodesic<'a> {
+    /// Construct a `Geodesic` between a pair of positions on the WGS 84
+    /// `Ellipsoid`, the "indirect" method.  
     /// @pre |lat| <= 90.0 degrees.
     /// * `a`, `b` - the start and finish positions in geodetic coordinates.
-    /// * `ellipsoid` - a reference to the `Ellipsoid`.
     #[must_use]
-    fn from(params: (&LatLong, &LatLong, &'a Ellipsoid)) -> Self {
-        Self::between_positions(params.0, params.1, params.2)
+    fn from(params: (&LatLong, &LatLong)) -> Self {
+        Self::between_positions(params.0, params.1, &WGS84_ELLIPSOID)
     }
 }
 
@@ -935,15 +935,13 @@ pub fn calculate_intersection_distances(
 /// use icao_wgs84::*;
 /// use angle_sc::is_within_tolerance;
 ///
-/// let wgs84_ellipsoid = Ellipsoid::wgs84();
-///
 /// let istanbul = LatLong::new(Degrees(42.0), Degrees(29.0));
 /// let washington = LatLong::new(Degrees(39.0), Degrees(-77.0));
 /// let reyjavik = LatLong::new(Degrees(64.0), Degrees(-22.0));
 /// let accra = LatLong::new(Degrees(6.0), Degrees(0.0));
 ///
-/// let g1 = Geodesic::from((&istanbul, &washington, &wgs84_ellipsoid));
-/// let g2 = Geodesic::from((&reyjavik, &accra, &wgs84_ellipsoid));
+/// let g1 = Geodesic::from((&istanbul, &washington));
+/// let g2 = Geodesic::from((&reyjavik, &accra));
 ///
 /// // Calculate the intersection point position
 /// // The expected latitude and longitude are from:
@@ -1006,7 +1004,7 @@ mod tests {
 
     #[test]
     fn test_ellipsoid_traits() {
-        let geoid = Ellipsoid::default();
+        let geoid = Ellipsoid::wgs84();
 
         let geoid_clone = geoid.clone();
         assert!(geoid_clone == geoid);
@@ -1020,7 +1018,6 @@ mod tests {
         // 5.421025561218 0 84.846843174846
         // 3.027329237478900117 109.666857465735641205 96.826992198613537236
         // 12161089.9991805 109.607910081857488806 5988906.6319258056178 8449589948776.249238
-        let wgs84_ellipsoid = Ellipsoid::wgs84();
 
         // North East bound, straddle Equator
         let latlon1 = LatLong::new(Degrees(5.421025561218), Degrees(0.0));
@@ -1029,7 +1026,7 @@ mod tests {
             Degrees(109.666857465735641205),
         );
 
-        let result = calculate_azimuth_and_geodesic_length(&latlon1, &latlon2, &wgs84_ellipsoid);
+        let result = calculate_azimuth_and_geodesic_length(&latlon1, &latlon2, &WGS84_ELLIPSOID);
         assert_eq!(84.846843174846, Degrees::from(result.0).0);
         assert!(is_within_tolerance(12161089.9991805, (result.1).0, 1e-8));
     }
@@ -1040,7 +1037,6 @@ mod tests {
         // 8.226828747671 0 111.1269645725
         // -8.516119211674268968 178.688979582629224039 68.982798544955243193
         // 19886305.6710041 179.197987814300505446 97496.4436255989712 -29736790544759.340534
-        let wgs84_ellipsoid = Ellipsoid::wgs84();
 
         let latlon1 = LatLong::new(Degrees(8.226828747671), Degrees(0.0));
         let latlon2 = LatLong::new(
@@ -1048,7 +1044,7 @@ mod tests {
             Degrees(178.688979582629224039),
         );
 
-        let result = calculate_azimuth_and_geodesic_length(&latlon1, &latlon2, &wgs84_ellipsoid);
+        let result = calculate_azimuth_and_geodesic_length(&latlon1, &latlon2, &WGS84_ELLIPSOID);
         assert!(is_within_tolerance(
             111.1269645725,
             Degrees::from(result.0).0,
@@ -1063,7 +1059,6 @@ mod tests {
         // .322440123063 0 100.319048368176
         // -.367465171996537868 179.160624688175359763 79.682430612745621077
         // 19943611.6727803 179.749470297545372441 29954.0028615773743 -14555544282075.683105
-        let wgs84_ellipsoid = Ellipsoid::wgs84();
 
         let latlon1 = LatLong::new(Degrees(0.322440123063), Degrees(0.0));
         let latlon2 = LatLong::new(
@@ -1071,7 +1066,7 @@ mod tests {
             Degrees(179.160624688175359763),
         );
 
-        let result = calculate_azimuth_and_geodesic_length(&latlon1, &latlon2, &wgs84_ellipsoid);
+        let result = calculate_azimuth_and_geodesic_length(&latlon1, &latlon2, &WGS84_ELLIPSOID);
         assert!(is_within_tolerance(
             100.319048368176,
             Degrees::from(result.0).0,
@@ -1082,12 +1077,10 @@ mod tests {
 
     #[test]
     fn test_calculate_azimuth_and_geodesic_length_karney() {
-        let wgs84_ellipsoid = Ellipsoid::wgs84();
-
         let istanbul = LatLong::new(Degrees(42.0), Degrees(29.0));
         let washington = LatLong::new(Degrees(39.0), Degrees(-77.0));
         let (azimuth, length) =
-            calculate_azimuth_and_geodesic_length(&istanbul, &washington, &wgs84_ellipsoid);
+            calculate_azimuth_and_geodesic_length(&istanbul, &washington, &WGS84_ELLIPSOID);
 
         let azimuth_degrees = Degrees::from(azimuth);
         assert_eq!(-50.69375304113997, azimuth_degrees.0);
@@ -1101,7 +1094,6 @@ mod tests {
 
     #[test]
     fn test_geodesicarc_direct_constructors() {
-        let wgs84_ellipsoid = Ellipsoid::wgs84();
         let length = Metres(9_000_000.0);
         let aux_length = Radians(core::f64::consts::FRAC_PI_2);
 
@@ -1115,7 +1107,7 @@ mod tests {
             let azi = i as f64;
             let azimuth = Angle::from(Degrees(azi));
 
-            let geodesic1 = Geodesic::from((&a, azimuth, length, &wgs84_ellipsoid));
+            let geodesic1 = Geodesic::from((&a, azimuth, length));
             assert!(geodesic1.is_valid());
             let azi0 = geodesic1.azimuth(Metres(0.0));
             assert!(is_within_tolerance(
@@ -1127,7 +1119,7 @@ mod tests {
             let len0 = geodesic1.length();
             assert!(is_within_tolerance(length.0, len0.0, 1.0e-8));
 
-            let geodesic2 = Geodesic::from((&a, azimuth, aux_length, &wgs84_ellipsoid));
+            let geodesic2 = Geodesic::from((&a, azimuth, aux_length));
             assert!(geodesic2.is_valid());
             let azi0 = geodesic2.azimuth(Metres(0.0));
             assert!(is_within_tolerance(
@@ -1143,12 +1135,10 @@ mod tests {
 
     #[test]
     fn test_geodesicarc_between_positions() {
-        let wgs84_ellipsoid = Ellipsoid::wgs84();
-
         let istanbul = LatLong::new(Degrees(42.0), Degrees(29.0));
         let washington = LatLong::new(Degrees(39.0), Degrees(-77.0));
 
-        let g1 = Geodesic::between_positions(&istanbul, &washington, &wgs84_ellipsoid);
+        let g1 = Geodesic::between_positions(&istanbul, &washington, &WGS84_ELLIPSOID);
         assert!(g1.is_valid());
 
         let end_azimuth = Degrees::from(g1.azimuth(g1.length()));
@@ -1163,7 +1153,7 @@ mod tests {
         // test start position
         assert!(is_within_tolerance(
             42.0,
-            Degrees::from(wgs84_ellipsoid.calculate_geodetic_latitude(g1.beta())).0,
+            Degrees::from(WGS84_ELLIPSOID.calculate_geodetic_latitude(g1.beta())).0,
             32.0 * f64::EPSILON
         ));
         assert!(is_within_tolerance(
@@ -1243,7 +1233,7 @@ mod tests {
             32.0 * f64::EPSILON
         ));
 
-        let precision = Radians(1e-3 / wgs84_ellipsoid.a().0);
+        let precision = Radians(1e-3 / WGS84_ELLIPSOID.a().0);
         let (atd, xtd, iterations) = g1.calculate_aux_atd_and_xtd(mid_beta, mid_lon, precision);
         assert!(is_within_tolerance(mid_length.0, atd.0, f64::EPSILON));
         assert_eq!(0.0, xtd.0);
@@ -1257,12 +1247,10 @@ mod tests {
 
     #[test]
     fn test_meridonal_geodesicarc() {
-        let wgs84_ellipsoid = Ellipsoid::wgs84();
-
         // A Geodesic along the Greenwich meridian, over the North pole and down the IDL
         let a = LatLong::new(Degrees(45.0), Degrees(0.0));
         let b = LatLong::new(Degrees(45.0), Degrees(180.0));
-        let g1 = Geodesic::from((&a, &b, &wgs84_ellipsoid));
+        let g1 = Geodesic::from((&a, &b));
         let (_point, pole0) = g1.aux_point_and_pole(Radians(0.0));
 
         // Calculate the azimuth at the North pole
@@ -1278,11 +1266,9 @@ mod tests {
 
     #[test]
     fn test_geodesicarc_90n_0n_0e() {
-        let wgs84_ellipsoid = Ellipsoid::wgs84();
-
         let a = LatLong::new(Degrees(90.0), Degrees(0.0));
         let b = LatLong::new(Degrees(0.0), Degrees(0.0));
-        let g1 = Geodesic::from((&a, &b, &wgs84_ellipsoid));
+        let g1 = Geodesic::from((&a, &b));
 
         assert!(is_within_tolerance(
             core::f64::consts::FRAC_PI_2,
@@ -1294,11 +1280,9 @@ mod tests {
 
     #[test]
     fn test_geodesicarc_90s_0n_50e() {
-        let wgs84_ellipsoid = Ellipsoid::wgs84();
-
         let a = LatLong::new(Degrees(-90.0), Degrees(0.0));
         let b = LatLong::new(Degrees(0.0), Degrees(50.0));
-        let g1 = Geodesic::from((&a, &b, &wgs84_ellipsoid));
+        let g1 = Geodesic::from((&a, &b));
 
         assert!(is_within_tolerance(
             core::f64::consts::FRAC_PI_2,
@@ -1310,13 +1294,11 @@ mod tests {
 
     #[test]
     fn test_calculate_atd_and_xtd() {
-        let wgs84_ellipsoid = Ellipsoid::wgs84();
-
         // Karney's example
         // Istanbul, Washington and Reyjavik
         let istanbul = LatLong::new(Degrees(42.0), Degrees(29.0));
         let washington = LatLong::new(Degrees(39.0), Degrees(-77.0));
-        let g1 = Geodesic::from((&istanbul, &washington, &wgs84_ellipsoid));
+        let g1 = Geodesic::from((&istanbul, &washington));
 
         let reyjavik = LatLong::new(Degrees(64.0), Degrees(-22.0));
 
@@ -1342,7 +1324,7 @@ mod tests {
 
         // Test delta_azimuth at interception, should be PI/2
         let azimuth_1 = g1.azimuth(atd);
-        let g2 = Geodesic::from((&position, &reyjavik, &wgs84_ellipsoid));
+        let g2 = Geodesic::from((&position, &reyjavik));
         let azimuth_2 = g2.azi();
         let delta_azimuth = azimuth_2 - azimuth_1;
         assert!(is_within_tolerance(
@@ -1352,7 +1334,7 @@ mod tests {
         ));
 
         // opposite geodesic
-        let g1 = Geodesic::from((&washington, &istanbul, &wgs84_ellipsoid));
+        let g1 = Geodesic::from((&washington, &istanbul));
         let (atd, xtd, iterations) = g1.calculate_atd_and_xtd(&reyjavik, Metres(1e-3));
         assert!(is_within_tolerance(
             g1.length().0 - 3928788.572,
@@ -1365,8 +1347,6 @@ mod tests {
 
     #[test]
     fn test_intersection_point_distance() {
-        let wgs84_ellipsoid = Ellipsoid::wgs84();
-
         // Karney's example
         // Istanbul, Washington, Reyjavik and Accra
         let istanbul = LatLong::new(Degrees(42.0), Degrees(29.0));
@@ -1374,8 +1354,8 @@ mod tests {
         let reyjavik = LatLong::new(Degrees(64.0), Degrees(-22.0));
         let accra = LatLong::new(Degrees(6.0), Degrees(0.0));
 
-        let g1 = Geodesic::from((&istanbul, &washington, &wgs84_ellipsoid));
-        let g2 = Geodesic::from((&reyjavik, &accra, &wgs84_ellipsoid));
+        let g1 = Geodesic::from((&istanbul, &washington));
+        let g2 = Geodesic::from((&reyjavik, &accra));
 
         let result = calculate_intersection_point(&g1, &g2, Metres(1e-3));
         let lat_lon = result.unwrap();

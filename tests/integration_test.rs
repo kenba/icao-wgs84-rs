@@ -23,7 +23,7 @@ extern crate icao_wgs84;
 
 use angle_sc::{Angle, Degrees};
 use csv::ReaderBuilder;
-use icao_wgs84::{geodesic, Ellipsoid, Metres};
+use icao_wgs84::{geodesic, Metres, WGS84_ELLIPSOID};
 use std::env;
 use std::path::Path;
 use unit_sphere::LatLong;
@@ -32,8 +32,6 @@ use unit_sphere::LatLong;
 #[ignore]
 fn test_geodesic_examples() {
     // Read GEODTEST_DIR/GeodTest.dat file and run tests
-    let geoid = Ellipsoid::wgs84();
-
     let filename = "GeodTest.dat";
     let dir_key = "GEODTEST_DIR";
 
@@ -62,7 +60,7 @@ fn test_geodesic_examples() {
         // panic!("lon2; {:?}", lon2);
         let a = LatLong::new(lat1, lon1);
         let b = LatLong::new(lat2, lon2);
-        let result = geodesic::calculate_azimuth_aux_length(&a, &b, &geoid);
+        let result = geodesic::calculate_azimuth_aux_length(&a, &b, &WGS84_ELLIPSOID);
 
         let delta_azimuth = libm::fabs(azi1.0 - Degrees::from(result.0).0);
         // reduce tolerance for entries running between or close to vertices
@@ -82,8 +80,9 @@ fn test_geodesic_examples() {
             );
         }
 
-        let beta1 = geoid.calculate_parametric_latitude(Angle::from(lat1));
-        let result_m = geodesic::convert_radians_to_metres(beta1, result.0, result.1, &geoid);
+        let beta1 = WGS84_ELLIPSOID.calculate_parametric_latitude(Angle::from(lat1));
+        let result_m =
+            geodesic::convert_radians_to_metres(beta1, result.0, result.1, &WGS84_ELLIPSOID);
 
         let delta_length_m = libm::fabs(d_metres.0 - result_m.0);
         // if a short geodesic, test delta length, not delta length ratio

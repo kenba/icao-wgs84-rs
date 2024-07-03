@@ -475,7 +475,7 @@ pub fn convert_radians_to_metres(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::Ellipsoid;
+    use crate::WGS84_ELLIPSOID;
     use angle_sc::{is_within_tolerance, Degrees};
 
     #[test]
@@ -531,158 +531,142 @@ mod tests {
 
     #[test]
     fn test_delta_omega12() {
-        let wgs84_ellipsoid = Ellipsoid::wgs84();
-
         // 0.0, 0.0 to 30.0, 90.0
         let clairaut_30_90 = Angle::from(Degrees(60.0)).sin();
-        let eps_30_90 = wgs84_ellipsoid.calculate_epsilon(clairaut_30_90);
+        let eps_30_90 = WGS84_ELLIPSOID.calculate_epsilon(clairaut_30_90);
         let lam12_30_90 = delta_omega12(
             clairaut_30_90,
             eps_30_90,
             Radians(std::f64::consts::FRAC_PI_2),
             Angle::from_y_x(0.0, 1.0),
             Angle::from_y_x(1.0, 0.0),
-            &wgs84_ellipsoid,
+            &WGS84_ELLIPSOID,
         );
         assert_eq!(0.0045600360192803542, lam12_30_90);
 
         // 0.0, 0.0 to 45.0, 90.0
         let clairaut_45_90 = Angle::from(Degrees(45.0)).sin();
-        let eps_45_90 = wgs84_ellipsoid.calculate_epsilon(clairaut_45_90);
+        let eps_45_90 = WGS84_ELLIPSOID.calculate_epsilon(clairaut_45_90);
         let lam12_45_90 = delta_omega12(
             clairaut_45_90,
             eps_45_90,
             Radians(std::f64::consts::FRAC_PI_2),
             Angle::from_y_x(0.0, 1.0),
             Angle::from_y_x(1.0, 0.0),
-            &wgs84_ellipsoid,
+            &WGS84_ELLIPSOID,
         );
         assert_eq!(0.0037224722989948442, lam12_45_90);
 
         // 0.0, 0.0 to 60.0, 90.0
         let clairaut_60_90 = Angle::from(Degrees(30.0)).sin();
-        let eps_60_90 = wgs84_ellipsoid.calculate_epsilon(clairaut_60_90);
+        let eps_60_90 = WGS84_ELLIPSOID.calculate_epsilon(clairaut_60_90);
         let lam12_60_90 = delta_omega12(
             clairaut_60_90,
             eps_60_90,
             Radians(std::f64::consts::FRAC_PI_2),
             Angle::from_y_x(0.0, 1.0),
             Angle::from_y_x(1.0, 0.0),
-            &wgs84_ellipsoid,
+            &WGS84_ELLIPSOID,
         );
         assert_eq!(0.0026316334829412581, lam12_60_90);
     }
 
     #[test]
     fn test_calculate_azimuth_aux_length_meridian() {
-        let wgs84_ellipsoid = Ellipsoid::wgs84();
-
         let latlon1 = LatLong::new(Degrees(-70.0), Degrees(40.0));
         let latlon2 = LatLong::new(Degrees(80.0), Degrees(40.0));
 
         // Northbound geodesic along a meridian
-        let result = calculate_azimuth_aux_length(&latlon1, &latlon2, &wgs84_ellipsoid);
+        let result = calculate_azimuth_aux_length(&latlon1, &latlon2, &WGS84_ELLIPSOID);
         assert_eq!(0.0, Degrees::from(result.0).0);
         assert_eq!(2.6163378712682306, (result.1).0);
 
         // Southbound geodesic along a meridian
-        let result = calculate_azimuth_aux_length(&latlon2, &latlon1, &wgs84_ellipsoid);
+        let result = calculate_azimuth_aux_length(&latlon2, &latlon1, &WGS84_ELLIPSOID);
         assert_eq!(180.0, Degrees::from(result.0).0);
         assert_eq!(2.6163378712682306, (result.1).0);
 
         // Northbound geodesic past the North pole
         let latlon3 = LatLong::new(Degrees(80.0), Degrees(-140.0));
-        let result = calculate_azimuth_aux_length(&latlon2, &latlon3, &wgs84_ellipsoid);
+        let result = calculate_azimuth_aux_length(&latlon2, &latlon3, &WGS84_ELLIPSOID);
         assert_eq!(0.0, Degrees::from(result.0).0);
         assert_eq!(0.3502163200513691, (result.1).0);
     }
 
     #[test]
     fn test_calculate_azimuth_aux_length_equator() {
-        let wgs84_ellipsoid = Ellipsoid::wgs84();
-
         let latlon1 = LatLong::new(Degrees(0.0), Degrees(-40.0));
         let latlon2 = LatLong::new(Degrees(0.0), Degrees(50.0));
 
         // Eastbound geodesic along the equator
-        let result = calculate_azimuth_aux_length(&latlon1, &latlon2, &wgs84_ellipsoid);
+        let result = calculate_azimuth_aux_length(&latlon1, &latlon2, &WGS84_ELLIPSOID);
         assert_eq!(90.0, Degrees::from(result.0).0);
         assert_eq!(1.5760806267286946, (result.1).0);
 
         // Westbound geodesic along the equator
-        let result = calculate_azimuth_aux_length(&latlon2, &latlon1, &wgs84_ellipsoid);
+        let result = calculate_azimuth_aux_length(&latlon2, &latlon1, &WGS84_ELLIPSOID);
         assert_eq!(-90.0, Degrees::from(result.0).0);
         assert_eq!(1.5760806267286946, (result.1).0);
 
         // Long Eastbound geodesic along the equator
         let latlon3 = LatLong::new(Degrees(0.0), Degrees(135.0));
-        let result = calculate_azimuth_aux_length(&latlon1, &latlon3, &wgs84_ellipsoid);
+        let result = calculate_azimuth_aux_length(&latlon1, &latlon3, &WGS84_ELLIPSOID);
         assert_eq!(90.0, Degrees::from(result.0).0);
         assert_eq!(3.0646012186391296, (result.1).0);
     }
 
     #[test]
     fn test_calculate_azimuth_aux_length_normal_01() {
-        let wgs84_ellipsoid = Ellipsoid::wgs84();
-
         // North West bound, straddle Equator
         let latlon1 = LatLong::new(Degrees(-40.0), Degrees(70.0));
         let latlon2 = LatLong::new(Degrees(30.0), Degrees(0.0));
 
-        let result = calculate_azimuth_aux_length(&latlon1, &latlon2, &wgs84_ellipsoid);
+        let result = calculate_azimuth_aux_length(&latlon1, &latlon2, &WGS84_ELLIPSOID);
         assert_eq!(-55.00473169905792, Degrees::from(result.0).0);
         assert_eq!(1.6656790467428875, (result.1).0);
     }
 
     #[test]
     fn test_calculate_azimuth_aux_length_normal_02() {
-        let wgs84_ellipsoid = Ellipsoid::wgs84();
-
         // South West bound, straddle Equator
         let latlon1 = LatLong::new(Degrees(30.0), Degrees(70.0));
         let latlon2 = LatLong::new(Degrees(-40.0), Degrees(0.0));
 
-        let result = calculate_azimuth_aux_length(&latlon1, &latlon2, &wgs84_ellipsoid);
+        let result = calculate_azimuth_aux_length(&latlon1, &latlon2, &WGS84_ELLIPSOID);
         assert_eq!(-133.52938983286407, Degrees::from(result.0).0);
         assert_eq!(1.6656790467428875, (result.1).0);
     }
 
     #[test]
     fn test_calculate_azimuth_aux_length_normal_03() {
-        let wgs84_ellipsoid = Ellipsoid::wgs84();
-
         // South East bound, straddle Equator
         let latlon1 = LatLong::new(Degrees(30.0), Degrees(0.0));
         let latlon2 = LatLong::new(Degrees(-40.0), Degrees(70.0));
 
-        let result = calculate_azimuth_aux_length(&latlon1, &latlon2, &wgs84_ellipsoid);
+        let result = calculate_azimuth_aux_length(&latlon1, &latlon2, &WGS84_ELLIPSOID);
         assert_eq!(133.52938983286407, Degrees::from(result.0).0);
         assert_eq!(1.6656790467428875, (result.1).0);
     }
 
     #[test]
     fn test_calculate_azimuth_aux_length_normal_04() {
-        let wgs84_ellipsoid = Ellipsoid::wgs84();
-
         // North East bound, straddle Equator
         let latlon1 = LatLong::new(Degrees(-40.0), Degrees(0.0));
         let latlon2 = LatLong::new(Degrees(30.0), Degrees(70.0));
 
-        let result = calculate_azimuth_aux_length(&latlon1, &latlon2, &wgs84_ellipsoid);
+        let result = calculate_azimuth_aux_length(&latlon1, &latlon2, &WGS84_ELLIPSOID);
         assert_eq!(55.00473169905792, Degrees::from(result.0).0);
         assert_eq!(1.6656790467428875, (result.1).0);
     }
 
     #[test]
     fn test_calculate_azimuth_aux_length_normal_05() {
-        let wgs84_ellipsoid = Ellipsoid::wgs84();
-
         // North East bound, straddle Equator
         let latlon1 = LatLong::new(Degrees(0.0), Degrees(0.0));
         let latlon2 = LatLong::new(Degrees(0.5), Degrees(179.98));
 
         let result: (Angle, Radians) =
-            calculate_azimuth_aux_length(&latlon1, &latlon2, &wgs84_ellipsoid);
+            calculate_azimuth_aux_length(&latlon1, &latlon2, &WGS84_ELLIPSOID);
         assert_eq!(1.042038151998155, Degrees::from(result.0).0);
         assert_eq!(3.132893826005981, (result.1).0);
     }

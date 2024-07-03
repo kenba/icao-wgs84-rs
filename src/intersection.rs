@@ -167,23 +167,21 @@ pub fn calculate_aux_intersection_distances(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{Ellipsoid, Geodesic, Metres};
+    use crate::{Geodesic, Metres};
     use unit_sphere::{Degrees, LatLong, Radians};
 
     #[test]
     fn test_intersection_same_start_point() {
-        let wgs84_ellipsoid = Ellipsoid::wgs84();
-
-        // Convert 1mm precision to Radians
-        let precision = Radians(Metres(1e-3).0 / wgs84_ellipsoid.a().0);
-
         // A Geodesic along the Greenwich meridian, over the North pole and down the IDL
         let a = LatLong::new(Degrees(45.0), Degrees(0.0));
         let b = LatLong::new(Degrees(45.0), Degrees(180.0));
-        let g1 = Geodesic::from((&a, &b, &wgs84_ellipsoid));
+        let g1 = Geodesic::from((&a, &b));
+
+        // Convert 1mm precision to Radians
+        let precision = Radians(Metres(1e-3).0 / g1.ellipsoid().a().0);
 
         let c = LatLong::new(Degrees(45.0), Degrees(45.0));
-        let g2 = Geodesic::from((&a, &c, &wgs84_ellipsoid));
+        let g2 = Geodesic::from((&a, &c));
 
         let (distance1, distance2, iterations) =
             calculate_aux_intersection_distances(&g1, &g2, precision);
@@ -197,19 +195,17 @@ mod tests {
 
     #[test]
     fn test_non_intersection_same_geodesic() {
-        let wgs84_ellipsoid = Ellipsoid::wgs84();
-
-        // Convert 1mm precision to Radians
-        let precision = Radians(Metres(1e-3).0 / wgs84_ellipsoid.a().0);
-
         // A Geodesic along the Greenwich meridian, over the North pole and down the IDL
         let a = LatLong::new(Degrees(45.0), Degrees(0.0));
         let b = LatLong::new(Degrees(50.0), Degrees(0.0));
-        let g1 = Geodesic::from((&a, &b, &wgs84_ellipsoid));
+        let g1 = Geodesic::from((&a, &b));
+
+        // Convert 1mm precision to Radians
+        let precision = Radians(Metres(1e-3).0 / g1.ellipsoid().a().0);
 
         let c = LatLong::new(Degrees(55.0), Degrees(0.0));
         let d = LatLong::new(Degrees(60.0), Degrees(0.0));
-        let g2 = Geodesic::from((&c, &d, &wgs84_ellipsoid));
+        let g2 = Geodesic::from((&c, &d));
 
         let (distance1, distance2, iterations) =
             calculate_aux_intersection_distances(&g1, &g2, precision);

@@ -15,6 +15,7 @@ edition = "2021"
 [dependencies]
 angle-sc = "0.2"
 icao-units = "0.1"
+lazy_static = "1.5"
 libm = "0.2"
 unit-sphere = "0.2"
 

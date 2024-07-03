@@ -43,6 +43,34 @@ and great-circles on the auxiliary sphere together with 3D vectors to calculate:
 - the along track distance and across track distance of a position relative to a geodesic;
 - and the intersection of a pair of geodesics.
 
+## Design
+
+The library is based on Charles Karney's [GeographicLib](https://geographiclib.sourceforge.io/) library.
+
+Like `GeographicLib`, it models geodesic paths as great circles on
+the surface of an auxiliary sphere. However, it also uses vectors to
+calculate along track distances, across track distances and
+intersections between geodesics.
+
+The `Ellipsoid` class represents an ellipsoid of revolution.  
+The static `WGS84_ELLIPSOID` represents the WGS 84 `Ellipsoid` which is used
+by the `Geodesic` `From` traits to create `Geodesic`s on the WGS 84 `Ellipsoid`.
+
+The library depends upon the following crates:
+
+- [angle-sc](https://crates.io/crates/angle-sc) - to define `Angle`, `Degrees` and `Radians` and perform trigonometric
+calculations;
+- [unit-sphere](https://crates.io/crates/unit-sphere) - to define `LatLong` and
+perform great-circle and vector calculations.
+- [icao_units](https://crates.io/crates/icao-units) - to define `Metres` and
+`NauticalMiles` and perform conversions between them.
+
+![Ellipsoid Class Diagram](docs/images/ellipsoid_class_diagram.svg)  
+*Figure 3 Class Diagram*
+
+The library is declared [no_std](https://docs.rust-embedded.org/book/intro/no-std.html)
+so it can be used in embedded applications.
+
 ## Examples
 
 ### Calculate geodesic initial azimuth and length
@@ -53,11 +81,9 @@ distance in Nautical Miles between two positions.
 ```rust
 use icao_wgs84::*;
 
-let wgs84_ellipsoid = Ellipsoid::wgs84();
-
 let istanbul = LatLong::new(Degrees(42.0), Degrees(29.0));
 let washington = LatLong::new(Degrees(39.0), Degrees(-77.0));
-let (azimuth, length) = calculate_azimuth_and_geodesic_length(&istanbul, &washington, &wgs84_ellipsoid);
+let (azimuth, length) = calculate_azimuth_and_geodesic_length(&istanbul, &washington, &WGS84_ELLIPSOID);
 
 let azimuth_degrees = Degrees::from(azimuth);
 println!("Istanbul-Washington initial azimuth: {:?}", azimuth_degrees.0);
@@ -89,11 +115,9 @@ Across track distances are:
 use icao_wgs84::*;
 use angle_sc::is_within_tolerance;
 
-let wgs84_ellipsoid = Ellipsoid::wgs84();
-
 let istanbul = LatLong::new(Degrees(42.0), Degrees(29.0));
 let washington = LatLong::new(Degrees(39.0), Degrees(-77.0));
-let g1 = Geodesic::between_positions(&istanbul, &washington, &wgs84_ellipsoid);
+let g1 = Geodesic::from(&istanbul, &washington);
 
 let azimuth_degrees = Degrees::from(g1.azimuth(Metres(0.0)));
 println!("Istanbul-Washington initial azimuth: {:?}", azimuth_degrees.0);
@@ -146,15 +170,13 @@ This solution does **not** have that requirement.
 use icao_wgs84::*;
 use angle_sc::is_within_tolerance;
 
-let wgs84_ellipsoid = Ellipsoid::wgs84();
-
 let istanbul = LatLong::new(Degrees(42.0), Degrees(29.0));
 let washington = LatLong::new(Degrees(39.0), Degrees(-77.0));
 let reyjavik = LatLong::new(Degrees(64.0), Degrees(-22.0));
 let accra = LatLong::new(Degrees(6.0), Degrees(0.0));
 
-let g1 = Geodesic::from((&istanbul, &washington, &wgs84_ellipsoid));
-let g2 = Geodesic::from((&reyjavik, &accra, &wgs84_ellipsoid));
+let g1 = Geodesic::from((&istanbul, &washington));
+let g2 = Geodesic::from((&reyjavik, &accra));
 
 // Calculate the intersection point position
 let result = calculate_intersection_point(&g1, &g2, Metres(1e-3));
@@ -164,29 +186,6 @@ let lat_lon = result.unwrap();
 assert!(is_within_tolerance(54.7170296089477, lat_lon.lat().0, 1e-6));
 assert!(is_within_tolerance(-14.56385574430775, lat_lon.lon().0, 1e-6));
 ```
-
-## Design
-
-The library is based on Charles Karney's [GeographicLib](https://geographiclib.sourceforge.io/) library.
-Like `GeographicLib`, it models geodesic paths as great circles on
-the surface of an auxiliary sphere. However, it also uses vectors to
-calculate along track distances, across track distances and
-intersections between geodesics.
-
-The library depends upon the following crates:
-
-- [angle-sc](https://crates.io/crates/angle-sc) - to define `Angle`, `Degrees` and `Radians` and perform trigonometric
-calculations;
-- [unit-sphere](https://crates.io/crates/unit-sphere) - to define `LatLong` and
-perform great-circle and vector calculations.
-- [icao_units](https://crates.io/crates/icao-units) - to define `Metres` and
-`NauticalMiles` and perform conversions between them.
-
-![Ellipsoid Class Diagram](docs/images/ellipsoid_class_diagram.svg)  
-*Figure 3 Class Diagram*
-
-The library is declared [no_std](https://docs.rust-embedded.org/book/intro/no-std.html)
-so it can be used in embedded applications.
 
 ## Test
 
