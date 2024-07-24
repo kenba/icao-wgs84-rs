@@ -145,12 +145,12 @@ pub fn calculate_aux_intersection_distances(
                 (distances.0, distances.1, 0)
             },
             |c| {
-                let centre = vector::normalise(&(g1.mid_point() + g2.mid_point()));
+                let centroid = 0.5 * (g1.mid_point() + g2.mid_point());
                 let use_antipodal_intersection =
-                    centre.is_some_and(|x| vector::sq_distance(&c, &x) > 2.0);
-                let d = if use_antipodal_intersection { -c } else { c };
+                    vector::intersection::use_antipodal_point(&c, &centroid);
+                let c = if use_antipodal_intersection { -c } else { c };
                 let initial_distances = vector::intersection::calculate_intersection_distances(
-                    &a1, &pole1, &a2, &pole2, &d,
+                    &a1, &pole1, &a2, &pole2, &c,
                 );
                 calculate_geodesic_intersection_distances(
                     g1,
