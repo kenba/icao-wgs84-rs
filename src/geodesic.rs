@@ -19,7 +19,7 @@
 // THE SOFTWARE.
 
 //! The geodesic module contains functions for calculating the geodesic path
-//! between two points on the surface of an ellipsoid.  
+//! between two points on the surface of an ellipsoid.
 //! See CFF Karney: [Geodesics on an ellipsoid of revolution](https://arxiv.org/pdf/1102.1215.pdf).
 
 #![allow(clippy::float_cmp)]
@@ -30,7 +30,7 @@ use angle_sc::{trig, trig::UnitNegRange, Angle, Radians};
 use unit_sphere::{great_circle, LatLong};
 
 /// Estimate omega12 by solving the astroid problem.
-/// Solve k^4+2*k^3-(x^2+y^2-1)*k^2-2*y^2*k-y^2 = 0 for positive root k.  
+/// Solve k^4+2*k^3-(x^2+y^2-1)*k^2-2*y^2*k-y^2 = 0 for positive root k.
 /// See CFF Karney section 7.
 /// * `x`, `y` - astroid parameter
 ///
@@ -119,7 +119,7 @@ fn calculate_reduced_length(
         - sigma1.cos().0 * sigma2.cos().0 * j12
 }
 
-/// Estimate the initial azimuth on the auxiliary sphere for a nearly antipodal arc.  
+/// Estimate the initial azimuth on the auxiliary sphere for a nearly antipodal arc.
 /// It calculates and solves the astroid problem.
 /// * `beta1`, `beta2` - the parametric latitudes of the start and finish points
 ///     on the auxiliary sphere.
@@ -317,14 +317,14 @@ fn find_azimuth_and_aux_length(
         // Calculate Longitude difference on the auxiliary sphere
         let mut omega12 = omega2 - omega1;
         // clamp to range 0 to Pi
-        if omega12.sin() < UnitNegRange(0.0) {
+        if omega12.sin().0.is_sign_negative() {
             omega12 = Angle::from_y_x(0.0, omega12.cos().0);
         }
 
         // Calculate great circle length on the auxiliary sphere
         let mut sigma12 = sigma2 - sigma1;
         // clamp to range 0 to Pi
-        if sigma12.sin() < UnitNegRange(0.0) {
+        if sigma12.sin().0.is_sign_negative() {
             sigma12 = Angle::from_y_x(0.0, sigma12.cos().0);
         }
 
@@ -369,8 +369,7 @@ fn find_azimuth_and_aux_length(
         alpha1 = alpha1.negate_cos();
     }
 
-    let lambda12_negative = lambda12.sin().0 < 0.0;
-    if lambda12_negative {
+    if lambda12.sin().0.is_sign_negative() {
         alpha1 = -alpha1;
     }
 
@@ -670,12 +669,15 @@ mod tests {
         assert_eq!(1.0420381519981552, Degrees::from(result.0).0);
         assert_eq!(3.132893826005981, (result.1).0);
     }
-    
+
     #[test]
     fn test_calculate_azimuth_aux_length_normal_06() {
         // GeodTest.dat line 460107
         let latlon1 = LatLong::new(Degrees(89.985810803742), Degrees(0.0));
-        let latlon2 = LatLong::new(Degrees(-89.985810803761488692), Degrees(179.999716989078075251));
+        let latlon2 = LatLong::new(
+            Degrees(-89.985810803761488692),
+            Degrees(179.999716989078075251),
+        );
 
         let result: (Angle, Radians) =
             calculate_azimuth_aux_length(&latlon1, &latlon2, &WGS84_ELLIPSOID);

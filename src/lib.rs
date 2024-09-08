@@ -1020,7 +1020,10 @@ mod tests {
             Degrees::from(unit_sphere::vector::latitude(&point)).0,
             f64::EPSILON
         ));
-        assert_eq!(45.0, Degrees::from(unit_sphere::vector::longitude(&point)).0);
+        assert_eq!(
+            45.0,
+            Degrees::from(unit_sphere::vector::longitude(&point)).0
+        );
     }
 
     #[test]
