@@ -79,11 +79,11 @@
 //! The library depends upon the following crates:
 //!
 //! - [angle-sc](https://crates.io/crates/angle-sc) - to define `Angle`,
-//! `Degrees` and `Radians` and perform trigonometric calculations;
+//!     `Degrees` and `Radians` and perform trigonometric calculations;
 //! - [unit-sphere](https://crates.io/crates/unit-sphere) - to define `LatLong`
-//! and perform great-circle and vector calculations.
+//!     and perform great-circle and vector calculations.
 //! - [icao_units](https://crates.io/crates/icao-units) - to define `Metres` and
-//! `NauticalMiles` and perform conversions between them.
+//!     `NauticalMiles` and perform conversions between them.
 //!
 //! The library is declared [no_std](https://docs.rust-embedded.org/book/intro/no-std.html)
 //! so it can be used in embedded applications.

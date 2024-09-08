@@ -122,7 +122,7 @@ fn calculate_reduced_length(
 /// Estimate the initial azimuth on the auxiliary sphere for a nearly antipodal arc.  
 /// It calculates and solves the astroid problem.
 /// * `beta1`, `beta2` - the parametric latitudes of the start and finish points
-/// on the auxiliary sphere.
+///     on the auxiliary sphere.
 /// * `lambda12` - Longitude difference between start and finish points.
 ///
 /// returns the estimate of the initial azimuth on the auxiliary sphere.
@@ -179,7 +179,7 @@ pub fn calculate_cos_omega(beta: Angle, cos_azimuth: UnitNegRange) -> UnitNegRan
 /// Calculate the azimuth on the auxiliary sphere at `parametric` latitude
 /// beta2 given the `parametric` latitude beta1 and azimuth, `alpha1`.
 /// * `beta1`, `beta2` - the parametric latitudes of the start and finish points
-/// on the auxiliary sphere.
+///     on the auxiliary sphere.
 /// * `alpha1` - start point azimuth.
 ///
 /// returns the finish point azimuth.
@@ -380,7 +380,7 @@ fn find_azimuth_and_aux_length(
 /// Calculate the initial azimuth and great circle length between a pair
 /// of points on the auxiliary sphere.
 /// * `beta1`, `beta2` - the `parametric` latitudes of the start and finish
-/// points on the auxiliary sphere.
+///     points on the auxiliary sphere.
 /// * `delta_long` - the longitude difference on the auxiliary sphere.
 /// * `ellipsoid` - the `Ellipsoid`.
 ///
@@ -437,7 +437,7 @@ pub fn calculate_azimuth_aux_length(
     let beta_b = ellipsoid.calculate_parametric_latitude(Angle::from(b.lat()));
 
     // calculate the longitude difference
-    let delta_long = Angle::from(b.lon() - a.lon());
+    let delta_long = Angle::from((b.lon(), a.lon()));
     aux_sphere_azimuth_length(beta_a, beta_b, delta_long, ellipsoid)
 }
 
@@ -623,7 +623,7 @@ mod tests {
 
         let result = calculate_azimuth_aux_length(&latlon1, &latlon2, &WGS84_ELLIPSOID);
         assert_eq!(-55.00473169905792, Degrees::from(result.0).0);
-        assert_eq!(1.6656790467428875, (result.1).0);
+        assert_eq!(1.6656790467428872, (result.1).0);
     }
 
     #[test]
@@ -634,7 +634,7 @@ mod tests {
 
         let result = calculate_azimuth_aux_length(&latlon1, &latlon2, &WGS84_ELLIPSOID);
         assert_eq!(-133.52938983286407, Degrees::from(result.0).0);
-        assert_eq!(1.6656790467428875, (result.1).0);
+        assert_eq!(1.6656790467428872, (result.1).0);
     }
 
     #[test]
@@ -645,7 +645,7 @@ mod tests {
 
         let result = calculate_azimuth_aux_length(&latlon1, &latlon2, &WGS84_ELLIPSOID);
         assert_eq!(133.52938983286407, Degrees::from(result.0).0);
-        assert_eq!(1.6656790467428875, (result.1).0);
+        assert_eq!(1.6656790467428872, (result.1).0);
     }
 
     #[test]
@@ -656,7 +656,7 @@ mod tests {
 
         let result = calculate_azimuth_aux_length(&latlon1, &latlon2, &WGS84_ELLIPSOID);
         assert_eq!(55.00473169905792, Degrees::from(result.0).0);
-        assert_eq!(1.6656790467428875, (result.1).0);
+        assert_eq!(1.6656790467428872, (result.1).0);
     }
 
     #[test]
@@ -667,7 +667,21 @@ mod tests {
 
         let result: (Angle, Radians) =
             calculate_azimuth_aux_length(&latlon1, &latlon2, &WGS84_ELLIPSOID);
-        assert_eq!(1.042038151998155, Degrees::from(result.0).0);
+        assert_eq!(1.0420381519981552, Degrees::from(result.0).0);
         assert_eq!(3.132893826005981, (result.1).0);
     }
+    
+    #[test]
+    fn test_calculate_azimuth_aux_length_normal_06() {
+        // GeodTest.dat line 460107
+        let latlon1 = LatLong::new(Degrees(89.985810803742), Degrees(0.0));
+        let latlon2 = LatLong::new(Degrees(-89.985810803761488692), Degrees(179.999716989078075251));
+
+        let result: (Angle, Radians) =
+            calculate_azimuth_aux_length(&latlon1, &latlon2, &WGS84_ELLIPSOID);
+        assert_eq!(90.000133176657, Degrees::from(result.0).0); // 90.000133176657
+        assert_eq!(3.1415926530122307, (result.1).0); // 3.141592653012231
+    }
+
+    // 89.985810803742 0 90.033923043742 -89.985810803761488692 179.999716989078075251 89.966210133068275597 20003931.4528694 179.999999966908046132 .0036837809003 -47969483155.576793
 }

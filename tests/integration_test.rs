@@ -64,7 +64,7 @@ fn test_geodesic_examples() {
 
         let delta_azimuth = libm::fabs(azi1.0 - Degrees::from(result.0).0);
         // reduce tolerance for entries running between or close to vertices
-        let azimuth_tolerance = if line_number <= 400000 { 5.5e-5 } else { 0.28 };
+        let azimuth_tolerance = if line_number <= 400000 { 5.331e-5 } else { 0.077 };
         if azimuth_tolerance < delta_azimuth {
             panic!(
                 "azimuth, line: {:?} delta: {:?} azimuth: {:?} delta_long: {:?} ",
