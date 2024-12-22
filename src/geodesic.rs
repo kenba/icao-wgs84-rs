@@ -135,7 +135,7 @@ fn estimate_antipodal_initial_azimuth(
     ellipsoid: &Ellipsoid,
 ) -> Angle {
     const Y_TOLERANCE: f64 = 200.0 * f64::EPSILON;
-    const X_TOLERANCE: f64 = 2000.0 / core::f64::consts::FRAC_2_SQRT_PI;
+    let x_threshold: f64 = 1000.0 * libm::sqrt(f64::EPSILON);
 
     // Calculate the integration parameter for geodesic
     let clairaut = beta1.cos(); // Note: assumes sin_alpha_1 = 1
@@ -150,7 +150,7 @@ fn estimate_antipodal_initial_azimuth(
     let y = (beta1 + beta2).sin().0 / betscale;
 
     // Test x and y params
-    if (x <= -(1.0 + X_TOLERANCE)) || (y < -Y_TOLERANCE) {
+    if (x <= -(1.0 + x_threshold)) || (y < -Y_TOLERANCE) {
         let k = calculate_astroid(x, y);
         let omg12a = lamscale * (-x * k / (1.0 + k));
 
@@ -481,7 +481,7 @@ mod tests {
     #[test]
     fn test_calculate_astroid() {
         const Y_TOLERANCE: f64 = 200.0 * f64::EPSILON;
-        const X_TOLERANCE: f64 = 2000.0 / core::f64::consts::FRAC_2_SQRT_PI;
+        let x_threshold: f64 = 1000.0 * libm::sqrt(f64::EPSILON);
 
         assert_eq!(0.0, calculate_astroid(0.0, 0.0));
         assert_eq!(0.0, calculate_astroid(1.0, 0.0));
@@ -508,8 +508,8 @@ mod tests {
         );
 
         assert_eq!(
-            1771.453850905516,
-            calculate_astroid(X_TOLERANCE, -Y_TOLERANCE - f64::EPSILON)
+            4.463096559488633e-14,
+            calculate_astroid(x_threshold, -Y_TOLERANCE - f64::EPSILON)
         );
     }
 
@@ -682,8 +682,8 @@ mod tests {
 
         let result: (Angle, Radians) =
             calculate_azimuth_aux_length(&latlon1, &latlon2, &WGS84_ELLIPSOID);
-        assert_eq!(90.000133176657, Degrees::from(result.0).0); // 90.000133176657
-        assert_eq!(3.1415926530122307, (result.1).0); // 3.141592653012231
+        assert_eq!(90.00013317691077, Degrees::from(result.0).0); // 90.000133176657
+        assert_eq!(3.141592653012229, (result.1).0); // 3.141592653012231
     }
 
     // 89.985810803742 0 90.033923043742 -89.985810803761488692 179.999716989078075251 89.966210133068275597 20003931.4528694 179.999999966908046132 .0036837809003 -47969483155.576793
