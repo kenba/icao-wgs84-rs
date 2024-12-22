@@ -18,16 +18,18 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-//! The wgs84 module contains the WGS 84 geoid primary parameters from the ICAO
+//! The wgs84 module contains the WGS 84 geoid primary parameters.
+//!
+//! From the ICAO
 //! [WGS 84 Implementation Manual Version 2.4](https://www.icao.int/safety/pbn/Documentation/EUROCONTROL/Eurocontrol%20WGS%2084%20Implementation%20Manual.pdf)
 //! Chapter 3, page 14.
 
 use crate::Metres;
 
-/// The WGS 84 Semimajor axis measured in metres.  
+/// The WGS 84 Semimajor axis measured in metres.
 /// This is the radius at the equator.
 pub const A: Metres = Metres(6_378_137.0);
 
-/// The WGS 84 flattening, a ratio.  
+/// The WGS 84 flattening, a ratio.
 /// This is the flattening of the ellipsoid at the poles.
 pub const F: f64 = 1.0 / 298.257_223_563;

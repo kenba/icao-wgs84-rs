@@ -90,7 +90,9 @@ pub fn calculate_3rd_flattening(f: f64) -> f64 {
 }
 
 /// Function to calculate `epsilon`, the variable used in series expansions,
-/// derived from Clairaut's constant. Note: `epsilon` is positive and small.  
+/// derived from Clairaut's constant.
+///
+/// Note: `epsilon` is positive and small.
 /// CFF Karney, [Geodesics on an ellipsoid of revolution](https://arxiv.org/pdf/1102.1215.pdf)
 /// Eqs 22 & 46.
 /// * `clairaut` - Clairaut's constant.

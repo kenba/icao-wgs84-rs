@@ -20,6 +20,7 @@
 
 //! The geodesic module contains functions for calculating the geodesic path
 //! between two points on the surface of an ellipsoid.
+//!
 //! See CFF Karney: [Geodesics on an ellipsoid of revolution](https://arxiv.org/pdf/1102.1215.pdf).
 
 #![allow(clippy::float_cmp)]

@@ -72,7 +72,7 @@
 //! calculate along track distances, across track distances and
 //! intersections between geodesics.
 //!
-//! The `Ellipsoid` class represents an ellipsoid of revolution.  
+//! The `Ellipsoid` class represents an ellipsoid of revolution.
 //! The static `WGS84_ELLIPSOID` represents the WGS 84 `Ellipsoid` which is used
 //! by the `Geodesic` `From` traits to create `Geodesic`s on the WGS 84 `Ellipsoid`.
 //!
@@ -107,7 +107,7 @@ use angle_sc::trig;
 use lazy_static::lazy_static;
 use unit_sphere::{great_circle, Vector3d};
 
-/// The parameters of an `Ellipsoid`.  
+/// The parameters of an `Ellipsoid`.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Ellipsoid {
     /// The Semimajor axis of the ellipsoid.
@@ -222,7 +222,7 @@ impl Ellipsoid {
         self.c3x
     }
 
-    /// Calculate epsilon, the variable used in series expansions.  
+    /// Calculate epsilon, the variable used in series expansions.
     /// Note: epsilon is positive and small.
     /// * `clairaut` - Clairaut's constant.
     #[must_use]
@@ -319,7 +319,7 @@ pub fn calculate_azimuth_and_geodesic_length(
     )
 }
 
-/// A geodesic path on the surface of an ellipsoid.  
+/// A geodesic path on the surface of an ellipsoid.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Geodesic<'a> {
     /// The parametric start latitude on the auxiliary sphere.
@@ -346,7 +346,7 @@ pub struct Geodesic<'a> {
     ellipsoid: &'a Ellipsoid,
 }
 
-impl<'a> Validate for Geodesic<'a> {
+impl Validate for Geodesic<'_> {
     /// Test whether a `Geodesic` is valid.
     /// Whether latitude <= 90.0 and `aux_length` is positive and less than PI.
     fn is_valid(&self) -> bool {
@@ -396,7 +396,7 @@ impl<'a> Geodesic<'a> {
         }
     }
 
-    /// Construct a `Geodesic` using the "direct" method.  
+    /// Construct a `Geodesic` using the "direct" method.
     /// @pre |lat| <= 90.0 degrees.
     /// * `a` - the start position in geodetic coordinates.
     /// * `azimuth` - the azimuth at the start position.
@@ -420,7 +420,7 @@ impl<'a> Geodesic<'a> {
         )
     }
 
-    /// Construct a `Geodesic` using the "direct" method with the length in metres.  
+    /// Construct a `Geodesic` using the "direct" method with the length in metres.
     /// @pre |lat| <= 90.0 degrees.
     /// * `a` - the start position in geodetic coordinates.
     /// * `azimuth` - the azimuth at the start position.
@@ -438,7 +438,7 @@ impl<'a> Geodesic<'a> {
         arc
     }
 
-    /// Construct a `Geodesic` between a pair of positions, the "indirect" method.  
+    /// Construct a `Geodesic` between a pair of positions, the "indirect" method.
     /// @pre |lat| <= 90.0 degrees.
     /// * `a`, `b` - the start and finish positions in geodetic coordinates.
     /// * `ellipsoid` - a reference to the `Ellipsoid`.
@@ -870,7 +870,7 @@ impl<'a> Geodesic<'a> {
     }
 }
 
-impl<'a> From<(&LatLong, Angle, Radians)> for Geodesic<'a> {
+impl From<(&LatLong, Angle, Radians)> for Geodesic<'_> {
     /// Construct a `Geodesic` on the WGS 84  `Ellipsoid` using the "direct"
     /// method with the length in `Radians`.
     /// @pre |lat| <= 90.0 degrees.
@@ -883,9 +883,9 @@ impl<'a> From<(&LatLong, Angle, Radians)> for Geodesic<'a> {
     }
 }
 
-impl<'a> From<(&LatLong, Angle, Metres)> for Geodesic<'a> {
+impl From<(&LatLong, Angle, Metres)> for Geodesic<'_> {
     /// Construct a `Geodesic` on the WGS 84 `Ellipsoid` using the "direct"
-    /// method with the length in metres.  
+    /// method with the length in metres.
     /// @pre |lat| <= 90.0 degrees.
     /// * `a` - the start position in geodetic coordinates.
     /// * `azimuth` - the azimuth at the start position.
@@ -896,9 +896,9 @@ impl<'a> From<(&LatLong, Angle, Metres)> for Geodesic<'a> {
     }
 }
 
-impl<'a> From<(&LatLong, &LatLong)> for Geodesic<'a> {
+impl From<(&LatLong, &LatLong)> for Geodesic<'_> {
     /// Construct a `Geodesic` between a pair of positions on the WGS 84
-    /// `Ellipsoid`, the "indirect" method.  
+    /// `Ellipsoid`, the "indirect" method.
     /// @pre |lat| <= 90.0 degrees.
     /// * `a`, `b` - the start and finish positions in geodetic coordinates.
     #[must_use]

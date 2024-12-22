@@ -63,7 +63,10 @@ fn test_rtca_do_238b_examples() {
 
         let delta_length_m = libm::fabs(d_metres.0 - result_m.0);
         let delta_error_m = range_error - delta_length_m;
-        println!("{},{},{},{}", line_number, delta_azimuth, delta_length_m, delta_error_m);
+        println!(
+            "{},{},{},{}",
+            line_number, delta_azimuth, delta_length_m, delta_error_m
+        );
 
         line_number += 1;
     }
