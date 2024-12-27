@@ -245,7 +245,7 @@ mod tests {
         let b = LatLong::new(Degrees(-0.998286322222), Degrees(179.296674991667));
         let g = Geodesic::from((&a, &b));
 
-         // Split g into two geodesics
+        // Split g into two geodesics
         let half_length = Metres(g.length().0 / 2.0);
         let half_aux_length = g.metres_to_radians(half_length);
 
@@ -266,8 +266,8 @@ mod tests {
             g.ellipsoid(),
         );
 
-       // 1mm precision in Radians on the auxiliary sphere
-       let precision = Radians(Metres(1e-3).0 / g.ellipsoid().a().0);
+        // 1mm precision in Radians on the auxiliary sphere
+        let precision = Radians(Metres(1e-3).0 / g.ellipsoid().a().0);
 
         // geodesics are coincident
         let (distance1, distance2, iterations) =
