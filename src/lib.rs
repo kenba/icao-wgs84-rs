@@ -460,6 +460,21 @@ impl<'a> Geodesic<'a> {
         }
     }
 
+    /// Construct a `Geodesic` between a pair of points on the auxiliary sphere,
+    /// the "indirect" method.
+    /// * `a`, `b` - the start and finish points on the auxiliary sphere.
+    /// * `ellipsoid` - a reference to the `Ellipsoid`.
+    #[must_use]
+    pub fn between_points(a: &Vector3d, b: &Vector3d, ellipsoid: &'a Ellipsoid) -> Self {
+        let beta = unit_sphere::vector::latitude(&a);
+        let lon = unit_sphere::vector::longitude(&a);
+        let beta_b = unit_sphere::vector::latitude(&b);
+        let delta_lon = unit_sphere::vector::delta_longitude(&b, &a);
+        let (azi, aux_length) =
+            geodesic::aux_sphere_azimuth_length(beta, beta_b, delta_lon, ellipsoid);
+        Geodesic::new(beta, lon, azi, aux_length, ellipsoid)
+    }
+
     /// Accessor for the start latitude on the auxiliary sphere.
     #[must_use]
     pub const fn beta(&self) -> Angle {

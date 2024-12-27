@@ -133,34 +133,58 @@ pub fn calculate_aux_intersection_distances(
     if sq_d < sq_precision {
         (Radians(0.0), Radians(0.0), 0)
     } else {
-        // Determine whether the great circles on the auxiliary sphere are coincident
-        vector::intersection::calculate_intersection_point(&pole1, &pole2).map_or_else(
-            || {
+        // Construct a geodesic between geodesic start points
+        let g3 = Geodesic::between_points(&a1, &a2, g1.ellipsoid());
+
+        // If the second geodesic start point lies on the first geodesic
+        let (_, pole3) = g3.aux_point_and_pole(Radians(0.0));
+        if vector::intersection::calculate_intersection_point(&pole1, &pole3).is_none() {
+            let (atd, _, iterations) = g1.calculate_aux_atd_and_xtd(g2.beta(), g2.lon(), precision);
+            // If the second geodesic end point lies on the first geodesic
+            let (_, pole4) = g3.aux_point_and_pole(atd);
+            if vector::intersection::calculate_intersection_point(&pole2, &pole4).is_none() {
+                // The geodesics are coincident
                 let distances = vector::intersection::calculate_coincident_arc_distances(
-                    vector::calculate_great_circle_atd(&a1, &pole1, &a2),
+                    atd,
                     pole1.dot(&pole2) < 0.0,
                     g1.aux_length(),
                     g2.aux_length(),
                 );
                 (distances.0, distances.1, 0)
-            },
-            |c| {
-                let centroid = 0.5 * (g1.mid_point() + g2.mid_point());
-                let use_antipodal_intersection =
-                    vector::intersection::use_antipodal_point(&c, &centroid);
-                let c = if use_antipodal_intersection { -c } else { c };
-                let initial_distances = vector::intersection::calculate_intersection_distances(
-                    &a1, &pole1, &a2, &pole2, &c,
-                );
-                calculate_geodesic_intersection_distances(
-                    g1,
-                    g2,
-                    sq_precision,
-                    use_antipodal_intersection,
-                    initial_distances,
-                )
-            },
-        )
+            } else {
+                // The geodesics intersect at the start of the second geodesic
+                (atd, Radians(0.0), iterations)
+            }
+        } else {
+            // Determine whether the great circles on the auxiliary sphere are coincident
+            vector::intersection::calculate_intersection_point(&pole1, &pole2).map_or_else(
+                || {
+                    let distances = vector::intersection::calculate_coincident_arc_distances(
+                        vector::calculate_great_circle_atd(&a1, &pole1, &a2),
+                        pole1.dot(&pole2) < 0.0,
+                        g1.aux_length(),
+                        g2.aux_length(),
+                    );
+                    (distances.0, distances.1, 0)
+                },
+                |c| {
+                    let centroid = 0.5 * (g1.mid_point() + g2.mid_point());
+                    let use_antipodal_intersection =
+                        vector::intersection::use_antipodal_point(&c, &centroid);
+                    let c = if use_antipodal_intersection { -c } else { c };
+                    let initial_distances = vector::intersection::calculate_intersection_distances(
+                        &a1, &pole1, &a2, &pole2, &c,
+                    );
+                    calculate_geodesic_intersection_distances(
+                        g1,
+                        g2,
+                        sq_precision,
+                        use_antipodal_intersection,
+                        initial_distances,
+                    )
+                },
+            )
+        }
     }
 }
 
@@ -168,7 +192,7 @@ pub fn calculate_aux_intersection_distances(
 mod tests {
     use super::*;
     use crate::{Geodesic, Metres};
-    use unit_sphere::{Degrees, LatLong, Radians};
+    use unit_sphere::{Angle, Degrees, LatLong, Radians};
 
     #[test]
     fn test_intersection_same_start_point() {
@@ -212,5 +236,60 @@ mod tests {
         assert_eq!(0.17463328753266863, distance1.0);
         assert_eq!(0.0, distance2.0);
         assert_eq!(0, iterations);
+    }
+
+    #[test]
+    fn test_intersection_same_geodesic_split() {
+        // A Geodesic along the Greenwich meridian, over the North pole and down the IDL
+        let a = LatLong::new(Degrees(1.0), Degrees(0.0));
+        let b = LatLong::new(Degrees(-0.998286322222), Degrees(179.296674991667));
+        let g = Geodesic::from((&a, &b));
+
+         // Split g into two geodesics
+        let half_length = Metres(g.length().0 / 2.0);
+        let half_aux_length = g.metres_to_radians(half_length);
+
+        // a geodesic from the start of g to its mid point
+        let g1 = Geodesic::new(
+            g.beta(),
+            g.lon(),
+            g.aux_azimuth(Radians(0.0)),
+            half_aux_length,
+            g.ellipsoid(),
+        );
+        // a geodesic from the mid point of g to its end
+        let g2 = Geodesic::new(
+            g.aux_beta(Angle::from(half_aux_length)),
+            g.aux_longitude(half_aux_length),
+            g.aux_azimuth(half_aux_length),
+            g.aux_length() - half_aux_length,
+            g.ellipsoid(),
+        );
+
+       // 1mm precision in Radians on the auxiliary sphere
+       let precision = Radians(Metres(1e-3).0 / g.ellipsoid().a().0);
+
+        // geodesics are coincident
+        let (distance1, distance2, iterations) =
+            calculate_aux_intersection_distances(&g1, &g2, precision);
+        assert_eq!(g1.aux_length().0, distance1.0);
+        assert_eq!(0.0, distance2.0);
+        assert_eq!(0, iterations);
+
+        // a geodesic from the mid point of g to another point
+        let g3 = Geodesic::new(
+            g.aux_beta(Angle::from(half_aux_length)),
+            g.aux_longitude(half_aux_length),
+            g.aux_azimuth(Radians(0.0)),
+            half_aux_length,
+            g.ellipsoid(),
+        );
+
+        // geodesics are NOT coincident
+        let (distance1, distance2, iterations) =
+            calculate_aux_intersection_distances(&g1, &g3, precision);
+        assert_eq!(g1.aux_length().0, distance1.0);
+        assert_eq!(0.0, distance2.0);
+        assert_eq!(2, iterations);
     }
 }
