@@ -28,7 +28,7 @@ use unit_sphere::LatLong;
 
 #[test]
 #[ignore]
-fn test_rtca_do_238b_examples() {
+fn test_rtca_do_283b_examples() {
     let filename = "rtca_do_283b_geodesic_examples.csv";
     let path = Path::new("data");
     let file_path = path.join(filename);
