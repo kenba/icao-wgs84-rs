@@ -20,11 +20,11 @@
 
 extern crate icao_wgs84;
 
-use angle_sc::{Angle, Degrees};
+use angle_sc::{Angle, Degrees, Radians};
 use csv::ReaderBuilder;
 use icao_wgs84::{geodesic, Metres, WGS84_ELLIPSOID};
 use std::path::Path;
-use unit_sphere::LatLong;
+use unit_sphere::{great_circle, LatLong};
 
 #[test]
 #[ignore]
@@ -53,7 +53,12 @@ fn test_rtca_do_283b_examples() {
 
         let a = LatLong::new(lat1, lon1);
         let b = LatLong::new(lat2, lon2);
-        let result = geodesic::calculate_azimuth_aux_length(&a, &b, &WGS84_ELLIPSOID);
+        let result = geodesic::calculate_azimuth_aux_length(
+            &a,
+            &b,
+            &WGS84_ELLIPSOID,
+            Radians(great_circle::MIN_VALUE),
+        );
 
         let delta_azimuth = libm::fabs(azi1.0 - Degrees::from(result.0).0);
 
@@ -64,8 +69,8 @@ fn test_rtca_do_283b_examples() {
         let delta_length_m = libm::fabs(d_metres.0 - result_m.0);
         let delta_error_m = range_error - delta_length_m;
         println!(
-            "{},{},{},{}",
-            line_number, delta_azimuth, delta_length_m, delta_error_m
+            "{},{},{},{},{}",
+            line_number, result.2, delta_azimuth, delta_length_m, delta_error_m
         );
 
         line_number += 1;

@@ -310,7 +310,8 @@ pub fn calculate_azimuth_and_geodesic_length(
     b: &LatLong,
     ellipsoid: &Ellipsoid,
 ) -> (Angle, Metres) {
-    let (alpha1, gc_distance) = geodesic::calculate_azimuth_aux_length(a, b, ellipsoid);
+    let (alpha1, gc_distance, _) =
+        geodesic::calculate_azimuth_aux_length(a, b, ellipsoid, Radians(great_circle::MIN_VALUE));
     let beta1 =
         ellipsoid::calculate_parametric_latitude(Angle::from(a.lat()), ellipsoid.one_minus_f());
     (
@@ -444,7 +445,12 @@ impl<'a> Geodesic<'a> {
     /// * `ellipsoid` - a reference to the `Ellipsoid`.
     #[must_use]
     pub fn between_positions(a: &LatLong, b: &LatLong, ellipsoid: &'a Ellipsoid) -> Self {
-        let (azimuth, aux_length) = geodesic::calculate_azimuth_aux_length(a, b, ellipsoid);
+        let (azimuth, aux_length, _) = geodesic::calculate_azimuth_aux_length(
+            a,
+            b,
+            ellipsoid,
+            Radians(great_circle::MIN_VALUE),
+        );
         let a_lat = Angle::from(a.lat());
         // if a is at the North or South pole
         if a_lat.cos().0 < great_circle::MIN_VALUE {
@@ -470,8 +476,13 @@ impl<'a> Geodesic<'a> {
         let lon = unit_sphere::vector::longitude(a);
         let beta_b = unit_sphere::vector::latitude(b);
         let delta_lon = unit_sphere::vector::delta_longitude(b, a);
-        let (azi, aux_length) =
-            geodesic::aux_sphere_azimuth_length(beta, beta_b, delta_lon, ellipsoid);
+        let (azi, aux_length, _) = geodesic::aux_sphere_azimuth_length(
+            beta,
+            beta_b,
+            delta_lon,
+            ellipsoid,
+            Radians(great_circle::MIN_VALUE),
+        );
         Geodesic::new(beta, lon, azi, aux_length, ellipsoid)
     }
 
@@ -789,8 +800,13 @@ impl<'a> Geodesic<'a> {
                 let azi_x = self.aux_azimuth(atd);
 
                 // calculate the geodesic azimuth and length to the point from the Geodesic position at atd
-                let (azi_p, length) =
-                    geodesic::aux_sphere_azimuth_length(beta_x, beta, lon - lon_x, self.ellipsoid);
+                let (azi_p, length, _) = geodesic::aux_sphere_azimuth_length(
+                    beta_x,
+                    beta,
+                    lon - lon_x,
+                    self.ellipsoid,
+                    Radians(great_circle::MIN_VALUE),
+                );
                 let delta_azi = azi_x - azi_p;
                 let delta_atd = trig::spherical_cosine_rule(delta_azi.cos(), length);
                 atd = atd + delta_atd;

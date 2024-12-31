@@ -243,9 +243,10 @@ fn delta_omega12(
 ///   f(alp1) = lambda12(alp1) - lam12 = 0
 /// * `beta_a`, `beta_b` - the `parametric` latitudes of the start and finish points.
 /// * `lambda12` - Longitude difference between start and finish points.
+/// * `tolerance` - the tolerance to perform the calculation to in Radians.
 ///
 /// returns the azimuth and great circle length on the auxiliary sphere at the
-/// start of the geodesic.
+/// start of the geodesic and the number of iterations required to calculate them.
 #[allow(clippy::similar_names)]
 #[must_use]
 fn find_azimuth_and_aux_length(
@@ -254,10 +255,8 @@ fn find_azimuth_and_aux_length(
     lambda12: Angle,
     gc_length: Radians,
     ellipsoid: &Ellipsoid,
-) -> (Angle, Radians) {
-    /// The maximum precision, in Radians.
-    const MAX_PRECISION: Radians = Radians(great_circle::MIN_VALUE);
-
+    tolerance: Radians,
+) -> (Angle, Radians, u32) {
     // The maximum number of iterations to attempt.
     const MAX_ITERS: u32 = 20;
 
@@ -293,7 +292,9 @@ fn find_azimuth_and_aux_length(
 
     let mut sigma12_rad = gc_length;
 
-    for _i in 0..MAX_ITERS {
+    let mut iterations: u32 = 1;
+    for i in 1..=MAX_ITERS {
+        iterations = i;
         // Calculate Clairaut's constant
         let clairaut = UnitNegRange(alpha1.sin().0 * beta1.cos().0);
         let eps = ellipsoid.calculate_epsilon(clairaut);
@@ -337,7 +338,7 @@ fn find_azimuth_and_aux_length(
 
         // Difference between differences
         let v = eta.0 - domg12;
-        if libm::fabs(v) < MAX_PRECISION.0 {
+        if libm::fabs(v) < tolerance.0 {
             break;
         }
 
@@ -348,13 +349,13 @@ fn find_azimuth_and_aux_length(
             let m12 = calculate_reduced_length(eps, sigma12_rad, sigma1, dn1, sigma2, dn2);
             ellipsoid.one_minus_f() * m12 / (alpha2.cos().0 * beta2.cos().0)
         };
-        if libm::fabs(dv) < MAX_PRECISION.0 {
+        if libm::fabs(dv) < tolerance.0 {
             break;
         }
 
         // Calculate the change in initial azimuth
         let dalpha1 = UnitNegRange::clamp(-v / dv);
-        if dalpha1.abs().0 < MAX_PRECISION.0 {
+        if dalpha1.abs().0 < tolerance.0 {
             break;
         }
 
@@ -374,7 +375,7 @@ fn find_azimuth_and_aux_length(
         alpha1 = -alpha1;
     }
 
-    (alpha1, sigma12_rad)
+    (alpha1, sigma12_rad, iterations)
 }
 
 /// Calculate the initial azimuth and great circle length between a pair
@@ -383,16 +384,18 @@ fn find_azimuth_and_aux_length(
 ///     points on the auxiliary sphere.
 /// * `delta_long` - the longitude difference on the auxiliary sphere.
 /// * `ellipsoid` - the `Ellipsoid`.
+/// * `tolerance` - the tolerance to perform the calculation to.
 ///
 /// returns the azimuth and great circle length on the auxiliary sphere at the
-/// start of the geodesic.
+/// start of the geodesic and the number of iterations required to calculate them.
 #[must_use]
 pub fn aux_sphere_azimuth_length(
     beta1: Angle,
     beta2: Angle,
     delta_long: Angle,
     ellipsoid: &Ellipsoid,
-) -> (Angle, Radians) {
+    tolerance: Radians,
+) -> (Angle, Radians, u32) {
     // Determine whether on a meridian, i.e. a great circle which passes through the North and South poles
     let gc_azimuth = great_circle::calculate_gc_azimuth(beta1, beta2, delta_long);
 
@@ -400,7 +403,7 @@ pub fn aux_sphere_azimuth_length(
     if gc_azimuth.abs().sin().0 < great_circle::MIN_VALUE {
         // Calculate the meridian distance on the auxillary sphere
         let meridian_length = great_circle::calculate_gc_distance(beta1, beta2, delta_long);
-        (gc_azimuth, meridian_length)
+        (gc_azimuth, meridian_length, 0)
     } else {
         // Determine whether on an equatorial path, i.e. the circle around the equator.
         let gc_length = great_circle::calculate_gc_distance(beta1, beta2, delta_long);
@@ -411,10 +414,10 @@ pub fn aux_sphere_azimuth_length(
         {
             // Calculate the distance around the equator on the auxillary sphere
             let equatorial_length = Radians(gc_length.0 * ellipsoid.recip_one_minus_f());
-            (gc_azimuth, equatorial_length)
+            (gc_azimuth, equatorial_length, 0)
         } else {
             // Iterate to find the azimuth and length on the auxillary sphere
-            find_azimuth_and_aux_length(beta1, beta2, delta_long, gc_length, ellipsoid)
+            find_azimuth_and_aux_length(beta1, beta2, delta_long, gc_length, ellipsoid, tolerance)
         }
     }
 }
@@ -423,22 +426,24 @@ pub fn aux_sphere_azimuth_length(
 /// between a pair of positions.
 /// * `a`, `b` - the start and finish positions in geodetic coordinates.
 /// * `ellipsoid` - the `Ellipsoid`.
+/// * `tolerance` - the tolerance to perform the calculation to.
 ///
 /// returns the azimuth and great circle length on the auxiliary sphere at the
-/// start of the geodesic.
+/// start of the geodesic and the number of iterations required to calculate them.
 #[must_use]
 pub fn calculate_azimuth_aux_length(
     a: &LatLong,
     b: &LatLong,
     ellipsoid: &Ellipsoid,
-) -> (Angle, Radians) {
+    tolerance: Radians,
+) -> (Angle, Radians, u32) {
     // calculate the parametric latitudes on the auxiliary sphere
     let beta_a = ellipsoid.calculate_parametric_latitude(Angle::from(a.lat()));
     let beta_b = ellipsoid.calculate_parametric_latitude(Angle::from(b.lat()));
 
     // calculate the longitude difference
     let delta_long = Angle::from((b.lon(), a.lon()));
-    aux_sphere_azimuth_length(beta_a, beta_b, delta_long, ellipsoid)
+    aux_sphere_azimuth_length(beta_a, beta_b, delta_long, ellipsoid, tolerance)
 }
 
 /// Convert a great circle distance on the auxiliary sphere in radians to
@@ -576,19 +581,21 @@ mod tests {
         let latlon1 = LatLong::new(Degrees(-70.0), Degrees(40.0));
         let latlon2 = LatLong::new(Degrees(80.0), Degrees(40.0));
 
+        let tolerance = Radians(great_circle::MIN_VALUE);
+
         // Northbound geodesic along a meridian
-        let result = calculate_azimuth_aux_length(&latlon1, &latlon2, &WGS84_ELLIPSOID);
+        let result = calculate_azimuth_aux_length(&latlon1, &latlon2, &WGS84_ELLIPSOID, tolerance);
         assert_eq!(0.0, Degrees::from(result.0).0);
         assert_eq!(2.6163378712682306, (result.1).0);
 
         // Southbound geodesic along a meridian
-        let result = calculate_azimuth_aux_length(&latlon2, &latlon1, &WGS84_ELLIPSOID);
+        let result = calculate_azimuth_aux_length(&latlon2, &latlon1, &WGS84_ELLIPSOID, tolerance);
         assert_eq!(180.0, Degrees::from(result.0).0);
         assert_eq!(2.6163378712682306, (result.1).0);
 
         // Northbound geodesic past the North pole
         let latlon3 = LatLong::new(Degrees(80.0), Degrees(-140.0));
-        let result = calculate_azimuth_aux_length(&latlon2, &latlon3, &WGS84_ELLIPSOID);
+        let result = calculate_azimuth_aux_length(&latlon2, &latlon3, &WGS84_ELLIPSOID, tolerance);
         assert_eq!(0.0, Degrees::from(result.0).0);
         assert_eq!(0.3502163200513691, (result.1).0);
     }
@@ -598,19 +605,21 @@ mod tests {
         let latlon1 = LatLong::new(Degrees(0.0), Degrees(-40.0));
         let latlon2 = LatLong::new(Degrees(0.0), Degrees(50.0));
 
+        let tolerance = Radians(great_circle::MIN_VALUE);
+
         // Eastbound geodesic along the equator
-        let result = calculate_azimuth_aux_length(&latlon1, &latlon2, &WGS84_ELLIPSOID);
+        let result = calculate_azimuth_aux_length(&latlon1, &latlon2, &WGS84_ELLIPSOID, tolerance);
         assert_eq!(90.0, Degrees::from(result.0).0);
         assert_eq!(1.5760806267286946, (result.1).0);
 
         // Westbound geodesic along the equator
-        let result = calculate_azimuth_aux_length(&latlon2, &latlon1, &WGS84_ELLIPSOID);
+        let result = calculate_azimuth_aux_length(&latlon2, &latlon1, &WGS84_ELLIPSOID, tolerance);
         assert_eq!(-90.0, Degrees::from(result.0).0);
         assert_eq!(1.5760806267286946, (result.1).0);
 
         // Long Eastbound geodesic along the equator
         let latlon3 = LatLong::new(Degrees(0.0), Degrees(135.0));
-        let result = calculate_azimuth_aux_length(&latlon1, &latlon3, &WGS84_ELLIPSOID);
+        let result = calculate_azimuth_aux_length(&latlon1, &latlon3, &WGS84_ELLIPSOID, tolerance);
         assert_eq!(90.0, Degrees::from(result.0).0);
         assert_eq!(3.0646012186391296, (result.1).0);
     }
@@ -621,7 +630,12 @@ mod tests {
         let latlon1 = LatLong::new(Degrees(-40.0), Degrees(70.0));
         let latlon2 = LatLong::new(Degrees(30.0), Degrees(0.0));
 
-        let result = calculate_azimuth_aux_length(&latlon1, &latlon2, &WGS84_ELLIPSOID);
+        let result = calculate_azimuth_aux_length(
+            &latlon1,
+            &latlon2,
+            &WGS84_ELLIPSOID,
+            Radians(great_circle::MIN_VALUE),
+        );
         assert_eq!(-55.00473169905792, Degrees::from(result.0).0);
         assert_eq!(1.6656790467428872, (result.1).0);
     }
@@ -632,7 +646,12 @@ mod tests {
         let latlon1 = LatLong::new(Degrees(30.0), Degrees(70.0));
         let latlon2 = LatLong::new(Degrees(-40.0), Degrees(0.0));
 
-        let result = calculate_azimuth_aux_length(&latlon1, &latlon2, &WGS84_ELLIPSOID);
+        let result = calculate_azimuth_aux_length(
+            &latlon1,
+            &latlon2,
+            &WGS84_ELLIPSOID,
+            Radians(great_circle::MIN_VALUE),
+        );
         assert_eq!(-133.52938983286407, Degrees::from(result.0).0);
         assert_eq!(1.6656790467428872, (result.1).0);
     }
@@ -643,7 +662,12 @@ mod tests {
         let latlon1 = LatLong::new(Degrees(30.0), Degrees(0.0));
         let latlon2 = LatLong::new(Degrees(-40.0), Degrees(70.0));
 
-        let result = calculate_azimuth_aux_length(&latlon1, &latlon2, &WGS84_ELLIPSOID);
+        let result = calculate_azimuth_aux_length(
+            &latlon1,
+            &latlon2,
+            &WGS84_ELLIPSOID,
+            Radians(great_circle::MIN_VALUE),
+        );
         assert_eq!(133.52938983286407, Degrees::from(result.0).0);
         assert_eq!(1.6656790467428872, (result.1).0);
     }
@@ -654,7 +678,12 @@ mod tests {
         let latlon1 = LatLong::new(Degrees(-40.0), Degrees(0.0));
         let latlon2 = LatLong::new(Degrees(30.0), Degrees(70.0));
 
-        let result = calculate_azimuth_aux_length(&latlon1, &latlon2, &WGS84_ELLIPSOID);
+        let result = calculate_azimuth_aux_length(
+            &latlon1,
+            &latlon2,
+            &WGS84_ELLIPSOID,
+            Radians(great_circle::MIN_VALUE),
+        );
         assert_eq!(55.00473169905792, Degrees::from(result.0).0);
         assert_eq!(1.6656790467428872, (result.1).0);
     }
@@ -665,8 +694,12 @@ mod tests {
         let latlon1 = LatLong::new(Degrees(0.0), Degrees(0.0));
         let latlon2 = LatLong::new(Degrees(0.5), Degrees(179.98));
 
-        let result: (Angle, Radians) =
-            calculate_azimuth_aux_length(&latlon1, &latlon2, &WGS84_ELLIPSOID);
+        let result = calculate_azimuth_aux_length(
+            &latlon1,
+            &latlon2,
+            &WGS84_ELLIPSOID,
+            Radians(great_circle::MIN_VALUE),
+        );
         assert_eq!(1.0420381519981552, Degrees::from(result.0).0);
         assert_eq!(3.132893826005981, (result.1).0);
     }
@@ -680,8 +713,12 @@ mod tests {
             Degrees(179.999716989078075251),
         );
 
-        let result: (Angle, Radians) =
-            calculate_azimuth_aux_length(&latlon1, &latlon2, &WGS84_ELLIPSOID);
+        let result = calculate_azimuth_aux_length(
+            &latlon1,
+            &latlon2,
+            &WGS84_ELLIPSOID,
+            Radians(great_circle::MIN_VALUE),
+        );
         assert_eq!(90.00013317691077, Degrees::from(result.0).0); // 90.000133176657
         assert_eq!(3.141592653012229, (result.1).0); // 3.141592653012231
     }

@@ -21,12 +21,12 @@
 // extern crate we're testing, same as any other code would do.
 extern crate icao_wgs84;
 
-use angle_sc::{Angle, Degrees};
+use angle_sc::{Angle, Degrees, Radians};
 use csv::ReaderBuilder;
 use icao_wgs84::{geodesic, Metres, WGS84_ELLIPSOID};
 use std::env;
 use std::path::Path;
-use unit_sphere::LatLong;
+use unit_sphere::{great_circle, LatLong};
 
 #[test]
 #[ignore]
@@ -44,6 +44,7 @@ fn test_geodesic_examples() {
         .from_path(file_path)
         .expect("Could not read file: GeodTest.dat");
     let mut line_number = 1;
+    let mut iterations = 0;
     for result in csv_reader.records() {
         let record = result.unwrap();
         // panic!("first record; {:?}", record);
@@ -60,7 +61,13 @@ fn test_geodesic_examples() {
         // panic!("lon2; {:?}", lon2);
         let a = LatLong::new(lat1, lon1);
         let b = LatLong::new(lat2, lon2);
-        let result = geodesic::calculate_azimuth_aux_length(&a, &b, &WGS84_ELLIPSOID);
+        let result = geodesic::calculate_azimuth_aux_length(
+            &a,
+            &b,
+            &WGS84_ELLIPSOID,
+            Radians(great_circle::MIN_VALUE),
+        );
+        iterations += result.2;
 
         let delta_azimuth = libm::fabs(azi1.0 - Degrees::from(result.0).0);
         // reduce tolerance for entries running between or close to vertices
@@ -118,4 +125,7 @@ fn test_geodesic_examples() {
         //  end_by_vertices_df = tests_df[450000:500000]
         line_number += 1;
     }
+
+    println!("line_number,iterations");
+    println!("{},{}", line_number, iterations);
 }
