@@ -136,6 +136,8 @@ pub fn calculate_aux_intersection_distances(
         // Construct a geodesic between geodesic start points
         let g3 = Geodesic::between_points(&a1, &a2, g1.ellipsoid());
 
+        // Determine whether the geodesics are coincident
+
         // If the second geodesic start point lies on the first geodesic
         let (_, pole3) = g3.aux_point_and_pole(Radians(0.0));
         if vector::intersection::calculate_intersection_point(&pole1, &pole3).is_none() {
@@ -156,9 +158,13 @@ pub fn calculate_aux_intersection_distances(
                 (atd, Radians(0.0), iterations)
             }
         } else {
+            // The geodesics are NOT coincident
+
             // Determine whether the great circles on the auxiliary sphere are coincident
             vector::intersection::calculate_intersection_point(&pole1, &pole2).map_or_else(
                 || {
+                    // This code should never be executed.
+                    // The check for coincident geodesics should cover coincident great circles.
                     let distances = vector::intersection::calculate_coincident_arc_distances(
                         vector::calculate_great_circle_atd(&a1, &pole1, &a2),
                         pole1.dot(&pole2) < 0.0,
