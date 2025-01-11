@@ -22,7 +22,9 @@
 //! on the surface of an ellipsoid.
 //!
 //! It uses the equations given by CFF Karney in
-//! [Algorithms for geodesics](https://arxiv.org/pdf/1109.4448.pdf).
+//! [Algorithms for geodesics](https://arxiv.org/pdf/1109.4448.pdf) and
+//! the equation for A2 in
+//! [Geodesics on an arbitrary ellipsoid of revolution](https://arxiv.org/pdf/2208.00492.pdf).
 
 use angle_sc::{Angle, Radians};
 
@@ -48,7 +50,9 @@ pub fn evaluate_a1(eps: f64) -> f64 {
 }
 
 /// The scale factor `A2`.
-/// CFF Karney, Eq. 42.
+/// 
+/// CFF Karney [Geodesics on an arbitrary ellipsoid of revolution](https://arxiv.org/pdf/2208.00492.pdf),
+/// Eq. A1.
 /// * `eps` - epsilon the integration variable derived from Clairaut's constant.
 /// # Examples
 /// ```
