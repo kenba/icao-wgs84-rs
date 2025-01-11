@@ -93,17 +93,17 @@ pub fn calculate_3rd_flattening(f: f64) -> f64 {
 /// derived from Clairaut's constant.
 ///
 /// Note: `epsilon` is positive and small.
-/// CFF Karney, [Geodesics on an ellipsoid of revolution](https://arxiv.org/pdf/1102.1215.pdf)
-/// Eqs 22 & 46.
+/// CFF Karney, [Algorithms for geodesics](https://arxiv.org/pdf/1109.4448.pdf)
+/// Eqs 9 & 16.
 /// * `clairaut` - Clairaut's constant.
 /// * `ep_2` - the square of the second Eccentricity of the ellipsoid.
 #[must_use]
 pub fn calculate_epsilon(clairaut: trig::UnitNegRange, ep_2: f64) -> f64 {
     // Clairaut's constant is sin alpha0; sq_cos_alpha0 is 1 - clairaut^2
     let sq_cos_alpha0 = (1.0 - clairaut.0) * (1.0 + clairaut.0);
-    let k2 = ep_2 * sq_cos_alpha0; // square of Karney equation 22
+    let k2 = ep_2 * sq_cos_alpha0; // square of Karney equation 9
     let sqrt_k2_1 = libm::sqrt(1.0 + k2) + 1.0;
-    k2 / (sqrt_k2_1 * sqrt_k2_1) // Karney equation 46
+    k2 / (sqrt_k2_1 * sqrt_k2_1) // Karney equation 16
 }
 
 /// Function to convert an `geodetic` sine Latitude to a `parametric` sine

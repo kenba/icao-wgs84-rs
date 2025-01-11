@@ -22,12 +22,12 @@
 //! on the surface of an ellipsoid.
 //!
 //! It uses the equations given by CFF Karney in
-//! [Geodesics on an ellipsoid of revolution](https://arxiv.org/pdf/1102.1215.pdf).
+//! [Algorithms for geodesics](https://arxiv.org/pdf/1109.4448.pdf).
 
 use angle_sc::{Angle, Radians};
 
 /// The scale factor `A1`.
-/// CFF Karney, Eq. 48.
+/// CFF Karney, Eq. 17.
 /// * `eps` - epsilon the integration variable derived from Clairaut's constant.
 /// # Examples
 /// ```
@@ -48,7 +48,7 @@ pub fn evaluate_a1(eps: f64) -> f64 {
 }
 
 /// The scale factor `A2`.
-/// CFF Karney, Eq. 50.
+/// CFF Karney, Eq. 42.
 /// * `eps` - epsilon the integration variable derived from Clairaut's constant.
 /// # Examples
 /// ```
@@ -57,9 +57,9 @@ pub fn evaluate_a1(eps: f64) -> f64 {
 ///
 /// // evaluate_a2 for WGS 84 latitude 45.0
 /// let eps45 = calculate_sq_2nd_eccentricity(wgs84::F) / 2.0;
-/// let a1 = evaluate_a2(eps45);
+/// let a2 = evaluate_a2(eps45);
 ///
-/// assert_eq!(-0.0033669191180908161, a1);
+/// assert_eq!(-0.0033669191180908161, a2);
 /// ```
 #[must_use]
 pub fn evaluate_a2(eps: f64) -> f64 {
@@ -69,7 +69,7 @@ pub fn evaluate_a2(eps: f64) -> f64 {
 }
 
 /// The coefficients `A3`.
-/// CFF Karney, Eq. 52.
+/// CFF Karney, Eq. 23.
 /// * `n` - the third flattening of the ellipsoid.
 #[must_use]
 pub fn evaluate_coeffs_a3(n: f64) -> [f64; 6] {
@@ -84,7 +84,7 @@ pub fn evaluate_coeffs_a3(n: f64) -> [f64; 6] {
 }
 
 /// The coefficients `C1[l]` in the Fourier expansion of `B1`.
-/// CFF Karney, Eq. 49.
+/// CFF Karney, Eq. 18.
 /// * `eps` - epsilon the integration variable derived from Clairaut's constant.
 #[must_use]
 pub fn evaluate_coeffs_c1(eps: f64) -> [f64; 7] {
@@ -104,7 +104,7 @@ pub fn evaluate_coeffs_c1(eps: f64) -> [f64; 7] {
 }
 
 /// The coefficients `C1p[l]` in the Fourier expansion of `B1p`.
-/// CFF Karney, Eq. 58.
+/// CFF Karney, Eq. 21.
 /// * `eps` - epsilon the integration variable derived from Clairaut's constant.
 #[must_use]
 pub fn evaluate_coeffs_c1p(eps: f64) -> [f64; 6] {
@@ -122,7 +122,7 @@ pub fn evaluate_coeffs_c1p(eps: f64) -> [f64; 6] {
 }
 
 /// The coefficients `C2[l]` in the Fourier expansion of `B2`.
-/// CFF Karney, Eq. 58.
+/// CFF Karney, Eq. 42.
 /// * `eps` - epsilon the integration variable derived from Clairaut's constant.
 #[must_use]
 pub fn evaluate_coeffs_c2(eps: f64) -> [f64; 7] {
@@ -142,7 +142,7 @@ pub fn evaluate_coeffs_c2(eps: f64) -> [f64; 7] {
 }
 
 /// The coefficients `C3x[l]` in the Fourier expansion of `C3`.
-/// CFF Karney, Eq. 53.
+/// CFF Karney, Eq. 25.
 /// * `n` - the third flattening of the ellipsoid.
 #[must_use]
 pub fn evaluate_coeffs_c3x(n: f64) -> [f64; 15] {
@@ -187,7 +187,7 @@ pub fn evaluate_polynomial(coeffs: &[f64], x: f64) -> f64 {
 }
 
 /// The coefficients `C3[l]` in the Fourier expansion of `C3`.
-/// CFF Karney, Eq. 53.
+/// CFF Karney, Eq. 26.
 /// * `coeffs` - the polynomial coefficients from `evaluate_coeffs_C3x`.
 /// * `eps` - epsilon the integration variable derived from Clairaut's constant.
 #[must_use]

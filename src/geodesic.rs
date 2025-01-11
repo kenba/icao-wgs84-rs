@@ -21,7 +21,7 @@
 //! The geodesic module contains functions for calculating the geodesic path
 //! between two points on the surface of an ellipsoid.
 //!
-//! See CFF Karney: [Geodesics on an ellipsoid of revolution](https://arxiv.org/pdf/1102.1215.pdf).
+//! See CFF Karney: [Algorithms for geodesics](https://arxiv.org/pdf/1109.4448.pdf).
 
 #![allow(clippy::float_cmp)]
 #![allow(clippy::many_single_char_names)]
@@ -32,7 +32,7 @@ use unit_sphere::{great_circle, LatLong};
 
 /// Estimate omega12 by solving the astroid problem.
 /// Solve k^4+2*k^3-(x^2+y^2-1)*k^2-2*y^2*k-y^2 = 0 for positive root k.
-/// See CFF Karney section 7.
+/// See CFF Karney section 5.
 /// * `x`, `y` - astroid parameter
 ///
 /// returns the solution to the astroid problem.
