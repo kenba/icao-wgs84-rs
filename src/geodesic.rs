@@ -1,4 +1,4 @@
-// Copyright (c) 2024 Ken Barker
+// Copyright (c) 2024-2025 Ken Barker
 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"),
@@ -237,20 +237,26 @@ fn delta_omega12(
 }
 
 /// Find the azimuth and great circle length on the auxiliary sphere.
+///
 /// It uses Newton's method to solve:
 ///   f(alp1) = lambda12(alp1) - lam12 = 0
-/// * `beta_a`, `beta_b` - the `parametric` latitudes of the start and finish points.
-/// * `lambda12` - Longitude difference between start and finish points.
+///
+/// * `beta1`, `beta2` - the start and end `parametric` latitudes.
+/// * `abs_lambda12` - Longitude difference between start and finish points.
+/// * `alpha` - the initial azimuth.
+/// * `gc_length` - the auxiliary sphere great circle length.
+/// * `ellipsoid` - the `Ellipsoid`.
 /// * `tolerance` - the tolerance to perform the calculation to in Radians.
 ///
 /// returns the azimuth and great circle length on the auxiliary sphere at the
 /// start of the geodesic and the number of iterations required to calculate them.
 #[allow(clippy::similar_names)]
 #[must_use]
-fn find_azimuth_and_aux_length(
-    beta_a: Angle,
-    beta_b: Angle,
-    lambda12: Angle,
+fn find_azimuth_length_newtons_method(
+    beta1: Angle,
+    beta2: Angle,
+    abs_lambda12: Angle,
+    alpha: Angle,
     gc_length: Radians,
     ellipsoid: &Ellipsoid,
     tolerance: Radians,
@@ -258,38 +264,11 @@ fn find_azimuth_and_aux_length(
     // The maximum number of iterations to attempt.
     const MAX_ITERS: u32 = 20;
 
-    // Start at the latitude furthest from the Equator
-    let swap_latitudes = beta_a.sin().abs() < beta_b.sin().abs();
-    let mut beta1 = if swap_latitudes { beta_b } else { beta_a };
-    let mut beta2 = if swap_latitudes { beta_a } else { beta_b };
-
-    // Start South of the Equator
-    let negate_latitude = 0.0 < beta1.sin().0;
-    if negate_latitude {
-        beta1 = -beta1;
-        beta2 = -beta2;
-    }
-
     let dn1 = libm::sqrt(1.0 + ellipsoid.ep_2() * beta1.sin().0 * beta1.sin().0);
     let dn2 = libm::sqrt(1.0 + ellipsoid.ep_2() * beta2.sin().0 * beta2.sin().0);
 
-    // Use positive lambda12, so all azimuths are positive
-    let abs_lambda12 = lambda12.abs();
-
-    // Estimate the azimuth at the start of the geodesic
-    let antipodal_arc_threshold: f64 = core::f64::consts::PI * ellipsoid.one_minus_f();
-    let mut alpha1 = if antipodal_arc_threshold < gc_length.0 {
-        estimate_antipodal_initial_azimuth(beta1, beta2, abs_lambda12, ellipsoid)
-    } else {
-        // Calculate great circle azimuth at the start using geodetic latitudes
-        let lat1 = ellipsoid.calculate_geodetic_latitude(beta1);
-        let lat2 = ellipsoid.calculate_geodetic_latitude(beta2);
-        great_circle::calculate_gc_azimuth(lat1, lat2, abs_lambda12)
-    };
-    let mut alpha2 = alpha1;
-
+    let mut alpha1 = alpha;
     let mut sigma12_rad = gc_length;
-
     let mut iterations: u32 = 1;
     for i in 1..=MAX_ITERS {
         iterations = i;
@@ -305,7 +284,7 @@ fn find_azimuth_and_aux_length(
         let sigma1 = Angle::from_y_x(beta1.sin().0, cos_omega1.0);
 
         // Calculate azimuth at the end point
-        alpha2 = calculate_end_azimuth(beta1, beta2, alpha1);
+        let alpha2 = calculate_end_azimuth(beta1, beta2, alpha1);
 
         // Calculate second longitude (omega2) and distance (sigma2) from the
         // Northbound equator crossing
@@ -361,7 +340,72 @@ fn find_azimuth_and_aux_length(
         alpha1 = alpha1 + Angle::from(Radians(dalpha1.0));
     }
 
+    (alpha1, sigma12_rad, iterations)
+}
+
+/// Find the azimuth and great circle length on the auxiliary sphere.
+/// It uses Newton's method to solve:
+///   f(alp1) = lambda12(alp1) - lam12 = 0
+/// * `beta_a`, `beta_b` - the `parametric` latitudes of the start and finish points.
+/// * `lambda12` - Longitude difference between start and finish points.
+/// * `gc_length` - the auxiliary sphere great circle length.
+/// * `ellipsoid` - the auxiliary sphere great circle length.
+/// * `ellipsoid` - the `Ellipsoid`.
+/// * `tolerance` - the tolerance to perform the calculation to in Radians.
+///
+/// returns the azimuth and great circle length on the auxiliary sphere at the
+/// start of the geodesic and the number of iterations required to calculate them.
+#[allow(clippy::similar_names)]
+#[must_use]
+fn find_azimuth_and_aux_length(
+    beta_a: Angle,
+    beta_b: Angle,
+    lambda12: Angle,
+    gc_length: Radians,
+    ellipsoid: &Ellipsoid,
+    tolerance: Radians,
+) -> (Angle, Radians, u32) {
+    // Start at the latitude furthest from the Equator
+    let swap_latitudes = beta_a.sin().abs() < beta_b.sin().abs();
+    let mut beta1 = if swap_latitudes { beta_b } else { beta_a };
+    let mut beta2 = if swap_latitudes { beta_a } else { beta_b };
+
+    // Start South of the Equator
+    let negate_latitude = 0.0 < beta1.sin().0;
+    if negate_latitude {
+        beta1 = -beta1;
+        beta2 = -beta2;
+    }
+
+    // Use positive lambda12, so all azimuths are positive
+    let abs_lambda12 = lambda12.abs();
+
+    // Estimate the azimuth at the start of the geodesic
+    let antipodal_arc_threshold: f64 = core::f64::consts::PI * ellipsoid.one_minus_f();
+    let alpha0 = if antipodal_arc_threshold < gc_length.0 {
+        estimate_antipodal_initial_azimuth(beta1, beta2, abs_lambda12, ellipsoid)
+    } else {
+        // Calculate great circle azimuth at the start using geodetic latitudes
+        let lat1 = ellipsoid.calculate_geodetic_latitude(beta1);
+        let lat2 = ellipsoid.calculate_geodetic_latitude(beta2);
+        great_circle::calculate_gc_azimuth(lat1, lat2, abs_lambda12)
+    };
+
+    // Use Newton's method to calculate the initial azimuth and aux length
+    let (alpha, sigma12, iterations) = find_azimuth_length_newtons_method(
+        beta1,
+        beta2,
+        abs_lambda12,
+        alpha0,
+        gc_length,
+        ellipsoid,
+        tolerance,
+    );
+
+    // Calculate the correct azimuth for the start and finish points
+    let mut alpha1 = alpha;
     if swap_latitudes {
+        let alpha2 = calculate_end_azimuth(beta1, beta2, alpha1);
         alpha1 = alpha2;
     }
 
@@ -373,7 +417,7 @@ fn find_azimuth_and_aux_length(
         alpha1 = -alpha1;
     }
 
-    (alpha1, sigma12_rad, iterations)
+    (alpha1, sigma12, iterations)
 }
 
 /// Calculate the initial azimuth and great circle length between a pair
