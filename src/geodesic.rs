@@ -227,15 +227,13 @@ fn delta_omega12(
     sigma1: Angle,
     sigma2: Angle,
     ellipsoid: &Ellipsoid,
-) -> f64 {
-    let a3f = ellipsoid::coefficients::evaluate_polynomial(&ellipsoid.a3(), eps);
-    let a3c = ellipsoid.f() * clairaut.0 * a3f;
-
-    let c3 = ellipsoid::coefficients::evaluate_coeffs_c3y(&ellipsoid.c3x(), eps);
+) -> Radians {
+    let c3 = ellipsoid.calculate_c3y(eps);
     let b31 = ellipsoid::coefficients::sin_cos_series(&c3, sigma1);
     let b32 = ellipsoid::coefficients::sin_cos_series(&c3, sigma2);
 
-    a3c * (sigma12 + (b32 - b31)).0
+    let a3c = ellipsoid.calculate_a3c(clairaut, eps);
+    Radians(a3c * (sigma12 + (b32 - b31)).0)
 }
 
 /// Find the azimuth and great circle length on the auxiliary sphere.
@@ -337,7 +335,7 @@ fn find_azimuth_and_aux_length(
         let domg12 = delta_omega12(clairaut, eps, sigma12_rad, sigma1, sigma2, ellipsoid);
 
         // Difference between differences
-        let v = eta.0 - domg12;
+        let v = eta.0 - domg12.0;
         if libm::fabs(v) < tolerance.0 {
             break;
         }
@@ -547,7 +545,7 @@ mod tests {
             Angle::from_y_x(1.0, 0.0),
             &WGS84_ELLIPSOID,
         );
-        assert_eq!(0.0045600360192803542, lam12_30_90);
+        assert_eq!(0.0045600360192803542, lam12_30_90.0);
 
         // 0.0, 0.0 to 45.0, 90.0
         let clairaut_45_90 = Angle::from(Degrees(45.0)).sin();
@@ -560,7 +558,7 @@ mod tests {
             Angle::from_y_x(1.0, 0.0),
             &WGS84_ELLIPSOID,
         );
-        assert_eq!(0.0037224722989948442, lam12_45_90);
+        assert_eq!(0.0037224722989948442, lam12_45_90.0);
 
         // 0.0, 0.0 to 60.0, 90.0
         let clairaut_60_90 = Angle::from(Degrees(30.0)).sin();
@@ -573,7 +571,7 @@ mod tests {
             Angle::from_y_x(1.0, 0.0),
             &WGS84_ELLIPSOID,
         );
-        assert_eq!(0.0026316334829412581, lam12_60_90);
+        assert_eq!(0.0026316334829412581, lam12_60_90.0);
     }
 
     #[test]
