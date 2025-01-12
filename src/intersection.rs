@@ -198,7 +198,8 @@ pub fn calculate_aux_intersection_distances(
 mod tests {
     use super::*;
     use crate::{Geodesic, Metres};
-    use unit_sphere::{Angle, Degrees, LatLong, Radians};
+    use angle_sc::{is_within_tolerance, Angle, Degrees, Radians};
+    use unit_sphere::LatLong;
 
     #[test]
     fn test_intersection_same_start_point() {
@@ -278,7 +279,11 @@ mod tests {
         // geodesics are coincident
         let (distance1, distance2, iterations) =
             calculate_aux_intersection_distances(&g1, &g2, precision);
-        assert_eq!(g1.aux_length().0, distance1.0);
+        assert!(is_within_tolerance(
+            g1.aux_length().0,
+            distance1.0,
+            f64::EPSILON
+        ));
         assert_eq!(0.0, distance2.0);
         assert_eq!(0, iterations);
 
@@ -294,7 +299,11 @@ mod tests {
         // geodesics are NOT coincident
         let (distance1, distance2, iterations) =
             calculate_aux_intersection_distances(&g1, &g3, precision);
-        assert_eq!(g1.aux_length().0, distance1.0);
+        assert!(is_within_tolerance(
+            g1.aux_length().0,
+            distance1.0,
+            f64::EPSILON
+        ));
         assert_eq!(0.0, distance2.0);
         assert_eq!(2, iterations);
     }

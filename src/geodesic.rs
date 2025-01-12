@@ -344,12 +344,15 @@ fn find_azimuth_length_newtons_method(
 }
 
 /// Find the azimuth and great circle length on the auxiliary sphere.
-/// It uses Newton's method to solve:
-///   f(alp1) = lambda12(alp1) - lam12 = 0
+///
+/// It adjusts the latitudes and longitude difference so that the aziumth of the
+/// geodesic lies between 0° and 90°.
+/// It calls `find_azimuth_length_newtons_method` and then changes the resulting
+/// azimuth to match the orienation of the geodesic.
+///
 /// * `beta_a`, `beta_b` - the `parametric` latitudes of the start and finish points.
 /// * `lambda12` - Longitude difference between start and finish points.
 /// * `gc_length` - the auxiliary sphere great circle length.
-/// * `ellipsoid` - the auxiliary sphere great circle length.
 /// * `ellipsoid` - the `Ellipsoid`.
 /// * `tolerance` - the tolerance to perform the calculation to in Radians.
 ///
@@ -385,10 +388,7 @@ fn find_azimuth_and_aux_length(
     let alpha0 = if antipodal_arc_threshold < gc_length.0 {
         estimate_antipodal_initial_azimuth(beta1, beta2, abs_lambda12, ellipsoid)
     } else {
-        // Calculate great circle azimuth at the start using geodetic latitudes
-        let lat1 = ellipsoid.calculate_geodetic_latitude(beta1);
-        let lat2 = ellipsoid.calculate_geodetic_latitude(beta2);
-        great_circle::calculate_gc_azimuth(lat1, lat2, abs_lambda12)
+        great_circle::calculate_gc_azimuth(beta1, beta2, abs_lambda12)
     };
 
     // Use Newton's method to calculate the initial azimuth and aux length
