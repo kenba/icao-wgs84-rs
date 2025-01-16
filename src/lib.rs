@@ -1138,8 +1138,8 @@ mod tests {
             calculate_azimuth_and_geodesic_length(&istanbul, &washington, &WGS84_ELLIPSOID);
 
         let azimuth_degrees = Degrees::from(azimuth);
-        assert_eq!(-50.693753041139985, azimuth_degrees.0);
-        assert_eq!(8339863.136005357, length.0);
+        assert_eq!(-50.69375304113997, azimuth_degrees.0);
+        assert_eq!(8339863.136005359, length.0);
 
         println!("Istanbul-Washington azimuth: {:?}", azimuth_degrees.0);
 
@@ -1254,10 +1254,10 @@ mod tests {
 
         // test end position
         let aux_length = g1.aux_length();
-        assert_eq!(1.3094128462495218, aux_length.0);
+        assert_eq!(1.309412846249522, aux_length.0);
 
         let length = g1.length();
-        assert_eq!(8339863.136005357, length.0);
+        assert_eq!(8339863.136005359, length.0);
 
         // let end_position = g1.aux_lat_long(aux_length);
         assert!(is_within_tolerance(
@@ -1284,11 +1284,11 @@ mod tests {
         assert!(is_within_tolerance(
             -25.694568908316413,
             Degrees::from(mid_position.lon()).0,
-            32.0 * f64::EPSILON
+            64.0 * f64::EPSILON
         ));
 
         let mid_length = g1.metres_to_radians(half_length);
-        assert_eq!(0.6546731651417489, mid_length.0);
+        assert_eq!(0.654673165141749, mid_length.0);
         let mid_point = g1.mid_point();
         let mid_beta = unit_sphere::vector::latitude(&mid_point);
         let mid_lat = g1.ellipsoid().calculate_geodetic_latitude(mid_beta);
@@ -1302,7 +1302,7 @@ mod tests {
         assert!(is_within_tolerance(
             -25.694568908316413,
             Degrees::from(mid_lon).0,
-            32.0 * f64::EPSILON
+            64.0 * f64::EPSILON
         ));
 
         let precision = Radians(1e-3 / WGS84_ELLIPSOID.a().0);

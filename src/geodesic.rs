@@ -236,6 +236,48 @@ fn delta_omega12(
     Radians(a3c * (sigma12 + (b32 - b31)).0)
 }
 
+/// Estimate the initial azimuth on the auxiliary sphere for normal arcs,
+/// i.e. NOT nearly anitpodal points.
+///
+/// * `beta1`, `beta2` the parametric latitudes on the auxiliary sphere.
+/// * `lambda12` longitude difference between points.
+/// * `ellipsoid` - the `Ellipsoid`.
+///
+/// @return an estimate of the initial azimuth on the auxiliary sphere.
+#[allow(clippy::similar_names)]
+#[must_use]
+fn estimate_initial_azimuth(
+    beta1: Angle,
+    beta2: Angle,
+    lambda12: Angle,
+    ellipsoid: &Ellipsoid,
+) -> Angle {
+    // Calculate the great circle azimuth between parametric latitudes
+    let alpha1 = great_circle::calculate_gc_azimuth(beta1, beta2, lambda12);
+
+    // Calculate Clairaut's constant
+    let clairaut = UnitNegRange(alpha1.sin().0 * beta1.cos().0);
+    let eps = ellipsoid.calculate_epsilon(clairaut);
+
+    // Calculate sigma1
+    let cos_omega1 = calculate_cos_omega(beta1, alpha1.cos());
+    let sigma1 = Angle::from_y_x(beta1.sin().0, cos_omega1.0);
+
+    // Calculate sigma2
+    let alpha2 = calculate_end_azimuth(beta1, beta2, alpha1);
+    let cos_omega2 = calculate_cos_omega(beta2, alpha2.cos());
+    let sigma2 = Angle::from_y_x(beta2.sin().0, cos_omega2.0);
+
+    // Calculate omega12
+    let sigma12 = Radians::from(sigma2) - Radians::from(sigma1);
+    let domg12 = delta_omega12(clairaut, eps, sigma12, sigma1, sigma2, ellipsoid);
+    let omega12 = lambda12 + Angle::from(domg12);
+
+    // Recalculate the great circle azimuth using the longitude difference
+    // estimate: omega12
+    great_circle::calculate_gc_azimuth(beta1, beta2, omega12)
+}
+
 /// Find the azimuth and great circle length on the auxiliary sphere.
 ///
 /// It uses Newton's method to solve:
@@ -388,7 +430,7 @@ fn find_azimuth_and_aux_length(
     let alpha0 = if antipodal_arc_threshold < gc_length.0 {
         estimate_antipodal_initial_azimuth(beta1, beta2, abs_lambda12, ellipsoid)
     } else {
-        great_circle::calculate_gc_azimuth(beta1, beta2, abs_lambda12)
+        estimate_initial_azimuth(beta1, beta2, abs_lambda12, ellipsoid)
     };
 
     // Use Newton's method to calculate the initial azimuth and aux length
@@ -459,7 +501,9 @@ pub fn aux_sphere_azimuth_length(
             (gc_azimuth, equatorial_length, 0)
         } else {
             // Iterate to find the azimuth and length on the auxillary sphere
-            find_azimuth_and_aux_length(beta1, beta2, delta_long, gc_length, ellipsoid, tolerance)
+            find_azimuth_and_aux_length(
+                beta1, beta2, delta_long, gc_length, ellipsoid, tolerance,
+            )
         }
     }
 }
@@ -678,8 +722,8 @@ mod tests {
             &WGS84_ELLIPSOID,
             Radians(great_circle::MIN_VALUE),
         );
-        assert_eq!(-55.00473169905792, Degrees::from(result.0).0);
-        assert_eq!(1.6656790467428872, (result.1).0);
+        assert_eq!(-55.00473169905793, Degrees::from(result.0).0);
+        assert_eq!(1.6656790467428877, (result.1).0);
     }
 
     #[test]
@@ -695,7 +739,7 @@ mod tests {
             Radians(great_circle::MIN_VALUE),
         );
         assert_eq!(-133.52938983286407, Degrees::from(result.0).0);
-        assert_eq!(1.6656790467428872, (result.1).0);
+        assert_eq!(1.6656790467428877, (result.1).0);
     }
 
     #[test]
@@ -711,7 +755,7 @@ mod tests {
             Radians(great_circle::MIN_VALUE),
         );
         assert_eq!(133.52938983286407, Degrees::from(result.0).0);
-        assert_eq!(1.6656790467428872, (result.1).0);
+        assert_eq!(1.6656790467428877, (result.1).0);
     }
 
     #[test]
@@ -726,8 +770,8 @@ mod tests {
             &WGS84_ELLIPSOID,
             Radians(great_circle::MIN_VALUE),
         );
-        assert_eq!(55.00473169905792, Degrees::from(result.0).0);
-        assert_eq!(1.6656790467428872, (result.1).0);
+        assert_eq!(55.00473169905793, Degrees::from(result.0).0);
+        assert_eq!(1.6656790467428877, (result.1).0);
     }
 
     #[test]
