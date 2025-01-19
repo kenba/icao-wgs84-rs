@@ -21,35 +21,53 @@
 extern crate icao_wgs84;
 
 use angle_sc::{Angle, Degrees, Radians};
-use csv::ReaderBuilder;
 use icao_wgs84::{geodesic, Metres, WGS84_ELLIPSOID};
-use std::path::Path;
+use itertools::multizip;
+use polars::prelude::*;
 use unit_sphere::{great_circle, LatLong};
+
+const FILENAME: &str = "data/rtca_do_283b_geodesic_examples.csv";
 
 #[test]
 #[ignore]
-fn test_rtca_do_283b_examples() {
-    let filename = "rtca_do_283b_geodesic_examples.csv";
-    let path = Path::new("data");
-    let file_path = path.join(filename);
-    let mut csv_reader = ReaderBuilder::new()
-        .has_headers(true)
-        .delimiter(b',')
-        .from_path(file_path)
-        .expect("Could not read file: rtca_do_283b_geodesic_examples.csv");
+fn test_rtca_do_283b_examples() -> Result<(), Box<dyn std::error::Error>> {
+    // Read file and run tests
+    let df = CsvReadOptions::default()
+        .with_has_header(true)
+        .try_into_reader_with_file_path(Some(FILENAME.into()))?
+        .finish()?;
 
-    let mut line_number = 1;
+    // println!("{:?}", df.head(None));
+
+    // Use multizip to access DataFrame by rows
+    let objects = df.take_columns();
+    let dep_lats = objects[0].f64()?.iter();
+    let dep_lons = objects[1].f64()?.iter();
+    let arr_lats = objects[2].f64()?.iter();
+    let arr_lons = objects[3].f64()?.iter();
+    let dep_azis = objects[4].f64()?.iter();
+    let ranges = objects[6].f64()?.iter();
+    let range_errors = objects[7].f64()?.iter();
+    let combined = multizip((
+        dep_lats,
+        dep_lons,
+        arr_lats,
+        arr_lons,
+        dep_azis,
+        ranges,
+        range_errors,
+    ));
+
     println!("line_number,iterations,delta_azimuth,delta_length,delta_error");
-    for result in csv_reader.records() {
-        let record = result.unwrap();
-        let lat1 = Degrees(record[0].parse::<f64>().unwrap());
-        let lon1 = Degrees(record[1].parse::<f64>().unwrap());
-        let lat2 = Degrees(record[2].parse::<f64>().unwrap());
-        let lon2 = Degrees(record[3].parse::<f64>().unwrap());
-        let azi1 = Degrees(record[4].parse::<f64>().unwrap());
-        let _azi2 = Degrees(record[5].parse::<f64>().unwrap());
-        let d_metres = Metres(record[6].parse::<f64>().unwrap());
-        let range_error = record[7].parse::<f64>().unwrap();
+    for (index, (lat1, lon1, lat2, lon2, azi1, d_metres, range_error)) in combined.enumerate() {
+        let lat1 = Degrees(lat1.unwrap());
+        let lon1 = Degrees(lon1.unwrap());
+        let lat2 = Degrees(lat2.unwrap());
+        let lon2 = Degrees(lon2.unwrap());
+        let azi1 = Degrees(azi1.unwrap());
+        // let _azi2 = Degrees(azi2.unwrap());
+        let d_metres = Metres(d_metres.unwrap());
+        let range_error = range_error.unwrap();
 
         let a = LatLong::new(lat1, lon1);
         let b = LatLong::new(lat2, lon2);
@@ -70,9 +88,13 @@ fn test_rtca_do_283b_examples() {
         let delta_error_m = range_error - delta_length_m;
         println!(
             "{},{},{},{},{}",
-            line_number, result.2, delta_azimuth, delta_length_m, delta_error_m
+            index + 1,
+            result.2,
+            delta_azimuth,
+            delta_length_m,
+            delta_error_m
         );
-
-        line_number += 1;
     }
+
+    Ok(())
 }

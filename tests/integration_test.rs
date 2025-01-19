@@ -22,15 +22,19 @@
 extern crate icao_wgs84;
 
 use angle_sc::{Angle, Degrees, Radians};
-use csv::ReaderBuilder;
 use icao_wgs84::{geodesic, Metres, WGS84_ELLIPSOID};
+use itertools::multizip;
+use polars::prelude::*;
 use std::env;
 use std::path::Path;
 use unit_sphere::{great_circle, LatLong};
 
+// The location of the file one sourceforge.net
+// const FILEPATH: &str = "https://sourceforge.net/projects/geographiclib/files/testdata/GeodTest.dat.gz/download";
+
 #[test]
 #[ignore]
-fn test_geodesic_examples() {
+fn test_geodesic_examples() -> Result<(), Box<dyn std::error::Error>> {
     // Read GEODTEST_DIR/GeodTest.dat file and run tests
     let filename = "GeodTest.dat";
     let dir_key = "GEODTEST_DIR";
@@ -38,25 +42,45 @@ fn test_geodesic_examples() {
     let p = env::var(dir_key).expect("Environment variable not found: GEODTEST_DIR");
     let path = Path::new(&p);
     let file_path = path.join(filename);
-    let mut csv_reader = ReaderBuilder::new()
-        .has_headers(false)
-        .delimiter(b' ')
-        .from_path(file_path)
-        .expect("Could not read file: GeodTest.dat");
-    let mut line_number = 1;
-    let mut iterations = 0;
-    for result in csv_reader.records() {
-        let record = result.unwrap();
-        // panic!("first record; {:?}", record);
 
-        let lat1 = Degrees(record[0].parse::<f64>().unwrap());
-        let lon1 = Degrees(record[1].parse::<f64>().unwrap());
-        let azi1 = Degrees(record[2].parse::<f64>().unwrap());
-        let lat2 = Degrees(record[3].parse::<f64>().unwrap());
-        let lon2 = Degrees(record[4].parse::<f64>().unwrap());
-        let _azi2 = Degrees(record[5].parse::<f64>().unwrap());
-        let d_metres = Metres(record[6].parse::<f64>().unwrap());
-        let d_degrees = Degrees(record[7].parse::<f64>().unwrap());
+    let df = CsvReadOptions::default()
+        .with_has_header(false)
+        .with_parse_options(CsvParseOptions::default().with_separator(b' '))
+        .try_into_reader_with_file_path(Some(file_path.into()))?
+        .finish()?;
+
+    let lines = df.height();
+
+    // println!("{:?}", df.head(None));
+
+    // Use multizip to access DataFrame by rows
+    let objects = df.take_columns();
+    let dep_lats = objects[0].f64()?.iter();
+    // let dep_lons = objects[1].i64()?.iter(); // departure longitudes are all zero
+    let dep_azis = objects[2].f64()?.iter();
+    let arr_lats = objects[3].f64()?.iter();
+    let arr_lons = objects[4].f64()?.iter();
+    let distances = objects[6].f64()?.iter();
+    let aux_distances = objects[7].f64()?.iter();
+    let combined = multizip((
+        dep_lats,
+        dep_azis,
+        arr_lats,
+        arr_lons,
+        distances,
+        aux_distances,
+    ));
+
+    let mut iterations = 0;
+    for (index, (lat1, azi1, lat2, lon2, d_metres, d_degrees)) in combined.enumerate() {
+        let lat1 = Degrees(lat1.unwrap());
+        let lon1 = Degrees(0.0);
+        let lat2 = Degrees(lat2.unwrap());
+        let lon2 = Degrees(lon2.unwrap());
+        let azi1 = Degrees(azi1.unwrap());
+        // let azi2 = Degrees(azi2.unwrap());
+        let d_metres = Metres(d_metres.unwrap());
+        let d_degrees = Degrees(d_degrees.unwrap());
 
         // panic!("lon2; {:?}", lon2);
         let a = LatLong::new(lat1, lon1);
@@ -71,15 +95,11 @@ fn test_geodesic_examples() {
 
         let delta_azimuth = libm::fabs(azi1.0 - Degrees::from(result.0).0);
         // reduce tolerance for entries running between or close to vertices
-        let azimuth_tolerance = if line_number <= 400000 {
-            5.331e-5
-        } else {
-            0.077
-        };
+        let azimuth_tolerance = if index <= 400000 { 5.331e-5 } else { 0.077 };
         if azimuth_tolerance < delta_azimuth {
             panic!(
                 "azimuth, line: {:?} delta: {:?} azimuth: {:?} delta_long: {:?} ",
-                line_number, delta_azimuth, azi1, lon2
+                index, delta_azimuth, azi1, lon2
             );
         }
 
@@ -87,7 +107,7 @@ fn test_geodesic_examples() {
         if 3.0e-10 < delta_length {
             panic!(
                 "length, line: {:?} delta: {:?} length: {:?} delta_long: {:?} ",
-                line_number, delta_length, d_degrees, lon2
+                index, delta_length, d_degrees, lon2
             );
         }
 
@@ -97,11 +117,11 @@ fn test_geodesic_examples() {
 
         let delta_length_m = libm::fabs(d_metres.0 - result_m.0);
         // if a short geodesic, test delta length, not delta length ratio
-        if line_number >= 150000 && line_number < 200000 {
+        if index >= 150000 && index < 200000 {
             if 9.0e-5 < delta_length_m {
                 panic!(
                     "length, line: {:?} delta: {:?} length: {:?} result: {:?} ",
-                    line_number, delta_length_m, d_metres, result_m
+                    index, delta_length_m, d_metres, result_m
                 );
             }
         } else {
@@ -109,7 +129,7 @@ fn test_geodesic_examples() {
             if 2.5e-9 < delta_length_m_ratio {
                 panic!(
                     "length, line: {:?} delta ratio: {:?} length: {:?} result: {:?} ",
-                    line_number, delta_length_m_ratio, d_metres, result_m
+                    index, delta_length_m_ratio, d_metres, result_m
                 );
             }
         }
@@ -123,9 +143,10 @@ fn test_geodesic_examples() {
         //  near_equatorial_df = tests_df[350000:400000]
         //  between_vertices_df = tests_df[400000:450000]
         //  end_by_vertices_df = tests_df[450000:500000]
-        line_number += 1;
     }
 
-    println!("line_number,iterations");
-    println!("{},{}", line_number, iterations);
+    println!("lines,iterations");
+    println!("{},{}", lines, iterations);
+
+    Ok(())
 }
