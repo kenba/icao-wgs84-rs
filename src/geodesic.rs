@@ -395,8 +395,8 @@ fn find_azimuth_length_newtons_method(
 /// * `beta_a`, `beta_b` - the `parametric` latitudes of the start and finish points.
 /// * `lambda12` - Longitude difference between start and finish points.
 /// * `gc_length` - the auxiliary sphere great circle length.
-/// * `ellipsoid` - the `Ellipsoid`.
 /// * `tolerance` - the tolerance to perform the calculation to in Radians.
+/// * `ellipsoid` - the `Ellipsoid`.
 ///
 /// returns the azimuth and great circle length on the auxiliary sphere at the
 /// start of the geodesic and the number of iterations required to calculate them.
@@ -407,8 +407,8 @@ fn find_azimuth_and_aux_length(
     beta_b: Angle,
     lambda12: Angle,
     gc_length: Radians,
-    ellipsoid: &Ellipsoid,
     tolerance: Radians,
+    ellipsoid: &Ellipsoid,
 ) -> (Angle, Radians, u32) {
     // Start at the latitude furthest from the Equator
     let swap_latitudes = beta_a.sin().abs() < beta_b.sin().abs();
@@ -467,8 +467,8 @@ fn find_azimuth_and_aux_length(
 /// * `beta1`, `beta2` - the `parametric` latitudes of the start and finish
 ///     points on the auxiliary sphere.
 /// * `delta_long` - the longitude difference on the auxiliary sphere.
-/// * `ellipsoid` - the `Ellipsoid`.
 /// * `tolerance` - the tolerance to perform the calculation to.
+/// * `ellipsoid` - the `Ellipsoid`.
 ///
 /// returns the azimuth and great circle length on the auxiliary sphere at the
 /// start of the geodesic and the number of iterations required to calculate them.
@@ -477,8 +477,8 @@ pub fn aux_sphere_azimuth_length(
     beta1: Angle,
     beta2: Angle,
     delta_long: Angle,
-    ellipsoid: &Ellipsoid,
     tolerance: Radians,
+    ellipsoid: &Ellipsoid,
 ) -> (Angle, Radians, u32) {
     // Determine whether on a meridian, i.e. a great circle which passes through the North and South poles
     let gc_azimuth = great_circle::calculate_gc_azimuth(beta1, beta2, delta_long);
@@ -501,9 +501,7 @@ pub fn aux_sphere_azimuth_length(
             (gc_azimuth, equatorial_length, 0)
         } else {
             // Iterate to find the azimuth and length on the auxillary sphere
-            find_azimuth_and_aux_length(
-                beta1, beta2, delta_long, gc_length, ellipsoid, tolerance,
-            )
+            find_azimuth_and_aux_length(beta1, beta2, delta_long, gc_length, tolerance, ellipsoid)
         }
     }
 }
@@ -529,7 +527,7 @@ pub fn calculate_azimuth_aux_length(
 
     // calculate the longitude difference
     let delta_long = Angle::from((b.lon(), a.lon()));
-    aux_sphere_azimuth_length(beta_a, beta_b, delta_long, ellipsoid, tolerance)
+    aux_sphere_azimuth_length(beta_a, beta_b, delta_long, tolerance, ellipsoid)
 }
 
 /// Convert a great circle distance on the auxiliary sphere in radians to

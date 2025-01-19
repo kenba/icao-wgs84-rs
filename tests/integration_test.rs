@@ -1,4 +1,4 @@
-// Copyright (c) 2024 Ken Barker
+// Copyright (c) 2024-2025 Ken Barker
 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"),
@@ -29,7 +29,7 @@ use std::env;
 use std::path::Path;
 use unit_sphere::{great_circle, LatLong};
 
-// The location of the file one sourceforge.net
+// The location of the file on sourceforge.net
 // const FILEPATH: &str = "https://sourceforge.net/projects/geographiclib/files/testdata/GeodTest.dat.gz/download";
 
 #[test]

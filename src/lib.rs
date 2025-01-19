@@ -480,8 +480,8 @@ impl<'a> Geodesic<'a> {
             beta,
             beta_b,
             delta_lon,
-            ellipsoid,
             Radians(great_circle::MIN_VALUE),
+            ellipsoid,
         );
         Geodesic::new(beta, lon, azi, aux_length, ellipsoid)
     }
@@ -804,8 +804,8 @@ impl<'a> Geodesic<'a> {
                     beta_x,
                     beta,
                     lon - lon_x,
-                    self.ellipsoid,
                     Radians(great_circle::MIN_VALUE),
+                    self.ellipsoid,
                 );
                 let delta_azi = azi_x - azi_p;
                 let delta_atd = trig::spherical_cosine_rule(delta_azi.cos(), length);

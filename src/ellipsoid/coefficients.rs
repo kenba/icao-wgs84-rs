@@ -1,4 +1,4 @@
-// Copyright (c) 2024 Ken Barker
+// Copyright (c) 2024-2025 Ken Barker
 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"),
@@ -50,7 +50,7 @@ pub fn evaluate_a1(eps: f64) -> f64 {
 }
 
 /// The scale factor `A2`.
-/// 
+///
 /// CFF Karney [Geodesics on an arbitrary ellipsoid of revolution](https://arxiv.org/pdf/2208.00492.pdf),
 /// Eq. A1.
 /// * `eps` - epsilon the integration variable derived from Clairaut's constant.
