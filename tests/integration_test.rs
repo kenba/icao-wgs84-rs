@@ -88,8 +88,8 @@ fn test_geodesic_examples() -> Result<(), Box<dyn std::error::Error>> {
         let result = geodesic::calculate_azimuth_aux_length(
             &a,
             &b,
-            &WGS84_ELLIPSOID,
             Radians(great_circle::MIN_VALUE),
+            &WGS84_ELLIPSOID,
         );
         iterations += result.2;
 

@@ -74,8 +74,8 @@ fn test_rtca_do_283b_examples() -> Result<(), Box<dyn std::error::Error>> {
         let result = geodesic::calculate_azimuth_aux_length(
             &a,
             &b,
-            &WGS84_ELLIPSOID,
             Radians(great_circle::MIN_VALUE),
+            &WGS84_ELLIPSOID,
         );
 
         let delta_azimuth = libm::fabs(azi1.0 - Degrees::from(result.0).0);
