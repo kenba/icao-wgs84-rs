@@ -106,34 +106,6 @@ pub fn calculate_epsilon(clairaut: trig::UnitNegRange, ep_2: f64) -> f64 {
     k2 / (sqrt_k2_1 * sqrt_k2_1) // Karney equation 16
 }
 
-/// Function to convert an `geodetic` sine Latitude to a `parametric` sine
-/// Latitude on the auxiliary sphere.
-/// * `sin_lat` - the `geodetic` sine Latitude
-/// * `e_2` - the square of the Eccentricity of the ellipsoid
-#[must_use]
-pub fn calculate_parametric_sin_latitude(
-    sin_lat: trig::UnitNegRange,
-    e_2: f64,
-) -> trig::UnitNegRange {
-    trig::UnitNegRange::clamp(
-        sin_lat.0 * libm::sqrt((1.0 - e_2) / (1.0 - e_2 * sin_lat.0 * sin_lat.0)),
-    )
-}
-
-/// Function to convert a `parametric` sine Latitude on the auxiliary sphere.
-/// to the `geodetic` sine Latitude.
-/// * `sin_lat` - the sine of the `parametric` Latitude.
-/// * `e_2` - the square of the Eccentricity of the ellipsoid
-#[must_use]
-pub fn calculate_geodetic_sin_latitude(
-    sin_lat: trig::UnitNegRange,
-    e_2: f64,
-) -> trig::UnitNegRange {
-    trig::UnitNegRange::clamp(
-        sin_lat.0 / libm::sqrt(1.0 - e_2 * (1.0 - sin_lat.0) * (1.0 + sin_lat.0)),
-    )
-}
-
 /// Function to convert a `geodetic` Latitude to a `parametric` Latitude on the
 /// auxiliary sphere.
 /// * `lat` - the `geodetic` Latitude
@@ -177,20 +149,6 @@ mod tests {
             calculate_epsilon(trig::UnitNegRange(0.75), wgs84_ep2)
         );
         assert_eq!(0.0, calculate_epsilon(trig::UnitNegRange(1.0), wgs84_ep2));
-    }
-
-    #[test]
-    fn test_calculate_parametric_and_geodetic_sin_latitude() {
-        let wgs84_e2 = calculate_sq_eccentricity(wgs84::F);
-        for i in -90..91 {
-            let latitude = i as f64;
-            let sin_lat = trig::UnitNegRange(libm::sin(latitude.to_radians()));
-            let sin_parametric_lat = calculate_parametric_sin_latitude(sin_lat, wgs84_e2);
-            let result = calculate_geodetic_sin_latitude(sin_parametric_lat, wgs84_e2);
-
-            // assert_eq!(sin_lat.0,  result.0);  // Does not work, not accurate enough.
-            assert!(is_within_tolerance(sin_lat.0, result.0, f64::EPSILON));
-        }
     }
 
     #[test]
