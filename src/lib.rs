@@ -296,7 +296,7 @@ lazy_static! {
 /// ```
 /// use icao_wgs84::*;
 /// use unit_sphere::great_circle;
-/// 
+///
 /// let tolerance = Radians(great_circle::MIN_VALUE);
 ///
 /// let istanbul = LatLong::new(Degrees(42.0), Degrees(29.0));
@@ -378,15 +378,14 @@ impl<'a> Geodesic<'a> {
     ) -> Self {
         // Calculate the azimuth at the first Equator crossing
         let clairaut = trig::UnitNegRange(azi.sin().0 * beta.cos().0);
-        let cos_azi0 = trig::UnitNegRange(libm::hypot(azi.cos().0, azi.sin().0 * beta.sin().0));
-        let azi0 = Angle::new(clairaut, cos_azi0);
+        let azi0 = Angle::new(clairaut, trig::swap_sin_cos(clairaut));
 
         // Calculate the distance to the first Equator crossing
         let cos_omega1 = geodesic::calculate_cos_omega(beta, azi.cos());
         let sigma1 = Angle::from_y_x(beta.sin().0, cos_omega1.0);
 
         // Calculate eps and c1 for calculating coefficients
-        let eps = ellipsoid.calculate_epsilon(clairaut);
+        let eps = ellipsoid.calculate_epsilon(azi0.sin());
         let c1 = ellipsoid::coefficients::evaluate_coeffs_c1(eps);
         Geodesic {
             beta,
@@ -397,7 +396,7 @@ impl<'a> Geodesic<'a> {
             aux_length,
             eps,
             a1: ellipsoid::coefficients::evaluate_a1(eps) + 1.0,
-            a3c: ellipsoid.calculate_a3c(clairaut, eps),
+            a3c: ellipsoid.calculate_a3c(azi0.sin(), eps),
             b11: ellipsoid::coefficients::sin_cos_series(&c1, sigma1),
             ellipsoid,
         }
@@ -451,13 +450,14 @@ impl<'a> Geodesic<'a> {
     /// * `tolerance` - the tolerance to perform the calculation to.
     /// * `ellipsoid` - a reference to the `Ellipsoid`.
     #[must_use]
-    pub fn between_positions(a: &LatLong, b: &LatLong, tolerance: Radians, ellipsoid: &'a Ellipsoid) -> Self {
-        let (azimuth, aux_length, _) = geodesic::calculate_azimuth_aux_length(
-            a,
-            b,
-            tolerance,
-            ellipsoid,
-        );
+    pub fn between_positions(
+        a: &LatLong,
+        b: &LatLong,
+        tolerance: Radians,
+        ellipsoid: &'a Ellipsoid,
+    ) -> Self {
+        let (azimuth, aux_length, _) =
+            geodesic::calculate_azimuth_aux_length(a, b, tolerance, ellipsoid);
         let a_lat = Angle::from(a.lat());
         // if a is at the North or South pole
         if a_lat.cos().0 < great_circle::MIN_VALUE {
@@ -847,7 +847,7 @@ impl<'a> Geodesic<'a> {
     /// use icao_wgs84::*;
     /// use angle_sc::is_within_tolerance;
     /// use unit_sphere::great_circle;
-    /// 
+    ///
     /// let tolerance = Radians(great_circle::MIN_VALUE);
     ///
     /// let istanbul = LatLong::new(Degrees(42.0), Degrees(29.0));
@@ -944,7 +944,12 @@ impl From<(&LatLong, &LatLong)> for Geodesic<'_> {
     /// * `a`, `b` - the start and finish positions in geodetic coordinates.
     #[must_use]
     fn from(params: (&LatLong, &LatLong)) -> Self {
-        Self::between_positions(params.0, params.1, Radians(great_circle::MIN_VALUE), &WGS84_ELLIPSOID)
+        Self::between_positions(
+            params.0,
+            params.1,
+            Radians(great_circle::MIN_VALUE),
+            &WGS84_ELLIPSOID,
+        )
     }
 }
 
@@ -1029,7 +1034,7 @@ mod tests {
     use super::*;
     use angle_sc::is_within_tolerance;
     use core::mem::size_of;
-    use unit_sphere::{LatLong, great_circle};
+    use unit_sphere::{great_circle, LatLong};
 
     #[test]
     fn test_ellipsoid_wgs84() {
@@ -1091,7 +1096,12 @@ mod tests {
             Degrees(109.666857465735641205),
         );
 
-        let result = calculate_azimuth_and_geodesic_length(&latlon1, &latlon2, Radians(great_circle::MIN_VALUE), &WGS84_ELLIPSOID);
+        let result = calculate_azimuth_and_geodesic_length(
+            &latlon1,
+            &latlon2,
+            Radians(great_circle::MIN_VALUE),
+            &WGS84_ELLIPSOID,
+        );
         assert_eq!(84.846843174846, Degrees::from(result.0).0);
         assert!(is_within_tolerance(12161089.9991805, (result.1).0, 1e-8));
     }
@@ -1109,7 +1119,12 @@ mod tests {
             Degrees(178.688979582629224039),
         );
 
-        let result = calculate_azimuth_and_geodesic_length(&latlon1, &latlon2, Radians(great_circle::MIN_VALUE), &WGS84_ELLIPSOID);
+        let result = calculate_azimuth_and_geodesic_length(
+            &latlon1,
+            &latlon2,
+            Radians(great_circle::MIN_VALUE),
+            &WGS84_ELLIPSOID,
+        );
         assert!(is_within_tolerance(
             111.1269645725,
             Degrees::from(result.0).0,
@@ -1131,7 +1146,12 @@ mod tests {
             Degrees(179.160624688175359763),
         );
 
-        let result = calculate_azimuth_and_geodesic_length(&latlon1, &latlon2, Radians(great_circle::MIN_VALUE), &WGS84_ELLIPSOID);
+        let result = calculate_azimuth_and_geodesic_length(
+            &latlon1,
+            &latlon2,
+            Radians(great_circle::MIN_VALUE),
+            &WGS84_ELLIPSOID,
+        );
         assert!(is_within_tolerance(
             100.319048368176,
             Degrees::from(result.0).0,
@@ -1144,8 +1164,12 @@ mod tests {
     fn test_calculate_azimuth_and_geodesic_length_karney() {
         let istanbul = LatLong::new(Degrees(42.0), Degrees(29.0));
         let washington = LatLong::new(Degrees(39.0), Degrees(-77.0));
-        let (azimuth, length) =
-            calculate_azimuth_and_geodesic_length(&istanbul, &washington, Radians(great_circle::MIN_VALUE), &WGS84_ELLIPSOID);
+        let (azimuth, length) = calculate_azimuth_and_geodesic_length(
+            &istanbul,
+            &washington,
+            Radians(great_circle::MIN_VALUE),
+            &WGS84_ELLIPSOID,
+        );
 
         let azimuth_degrees = Degrees::from(azimuth);
         assert_eq!(-50.69375304113997, azimuth_degrees.0);
