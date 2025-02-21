@@ -816,7 +816,7 @@ impl<'a> Geodesic<'a> {
                 );
                 let delta_azi = azi_x - azi_p;
                 let delta_atd = trig::spherical_cosine_rule(delta_azi.cos(), length);
-                atd = atd + delta_atd;
+                atd += delta_atd;
                 xtd = length;
 
                 if delta_atd.abs().0 < precision.0 {

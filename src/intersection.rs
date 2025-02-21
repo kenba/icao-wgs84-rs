@@ -89,8 +89,8 @@ pub fn calculate_geodesic_intersection_distances(
                 let (delta1, delta2) = vector::intersection::calculate_intersection_distances(
                     &pos1, &pole1, &pos2, &pole2, &c,
                 );
-                distance1 = distance1 + delta1;
-                distance2 = distance2 + delta2;
+                distance1 += delta1;
+                distance2 += delta2;
             }
             None => break,
         }

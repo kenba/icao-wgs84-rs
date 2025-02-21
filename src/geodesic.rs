@@ -379,7 +379,7 @@ fn find_azimuth_length_newtons_method(
         }
 
         // Adjust the azimuth by dalpha1
-        alpha1 = alpha1 + Angle::from(Radians(dalpha1.0));
+        alpha1 += Angle::from(Radians(dalpha1.0));
     }
 
     (alpha1, sigma12_rad, iterations)
