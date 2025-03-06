@@ -374,7 +374,7 @@ fn find_azimuth_length_newtons_method(
 
         // Calculate the change in initial azimuth
         let dalpha1 = UnitNegRange::clamp(-v / dv);
-        if dalpha1.abs().0 < tolerance.0 {
+        if dalpha1.abs().0 <= great_circle::MIN_VALUE {
             break;
         }
 
