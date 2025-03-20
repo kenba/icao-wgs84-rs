@@ -27,22 +27,22 @@
 //! [![codecov](https://codecov.io/gh/kenba/icao-wgs84-rs/graph/badge.svg?token=85TJX5VAHF)](https://codecov.io/gh/kenba/icao-wgs84-rs)
 //!
 //! A library for performing geometric calculations on the
-//! [WGS84](https://en.wikipedia.org/wiki/World_Geodetic_System) ellipsoid,
-//! see *Figure 1*.
+//! [WGS-84](https://www.icao.int/NACC/Documents/Meetings/2014/ECARAIM/REF08-Doc9674.pdf)
+//! ellipsoid, see *Figure 1*.
 //!
 //! <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/3/3e/WGS84_mean_Earth_radius.svg/800px-WGS84_mean_Earth_radius.svg.png" width="400">
 //!
-//! *Figure 1 The WGS84 Ellipsoid (not to scale)*
+//! *Figure 1 The WGS-84 Ellipsoid (not to scale)  
+//! [Cmglee](https://commons.wikimedia.org/wiki/User:Cmglee), [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0), via Wikimedia Commons*
 //!
-//! WGS84 has become the de facto standard for satellite navigation since its adoption
-//! by the Navstar [Global Positioning System](https://en.wikipedia.org/wiki/Global_Positioning_System)
-//! (GPS) and US president Ronald Reagan's 1983 decision to make GPS available for civilian use
-//! after airliner [KAL 007](https://en.wikipedia.org/wiki/Korean_Air_Lines_Flight_007)
-//! was shot down by Soviet interceptor aircraft when it strayed into
-//! prohibited airspace due to navigational errors.
-//!
-//! This library uses the WGS84 primary parameters defined in Tab. 3-1 of the
-//! [ICAO WGS 84 Implementation Manual](https://www.icao.int/safety/pbn/Documentation/EUROCONTROL/Eurocontrol%20WGS%2084%20Implementation%20Manual.pdf).
+//! [WGS-84](https://www.icao.int/NACC/Documents/Meetings/2014/ECARAIM/REF08-Doc9674.pdf)
+//! has become the de facto standard for satellite navigation since its adoption
+//! by the Navstar Global Positioning System
+//! ([GPS](https://www.gps.gov/systems/gps/performance/accuracy/))
+//! and the USA making GPS available for civilian use in 1983.
+//! 
+//! This library uses the WGS-84 primary parameters defined in Tab. 3-1 of the
+//! [ICAO WGS-84 Implementation Manual](https://www.icao.int/safety/pbn/Documentation/EUROCONTROL/Eurocontrol%20WGS%2084%20Implementation%20Manual.pdf).
 //!
 //! ## Geodesic navigation
 //!
@@ -52,16 +52,18 @@
 //! [great circles](https://en.wikipedia.org/wiki/Great_circle) on the surface of a
 //! sphere, see *Figure 2*.
 //!
-//! <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/c/cb/Geodesic_problem_on_an_ellipsoid.svg/1024px-Geodesic_problem_on_an_ellipsoid.svg.png" width="400">
+//! <img src="https://via-technology.aero/img/navigation/ellipsoid/sphere_mercator_long_geodesic.png" width="400">
 //!
-//! *Figure 2 A geodesic between points A and B*
+//! *Figure 2 A geodesic (orange) path and great circle (blue) path*
 //!
 //! This library uses the correspondence between geodesics on an ellipsoid and
-//! great-circles on the auxiliary sphere together with 3D vectors to calculate:
+//! great-circles on an auxiliary sphere together with 3D vectors to calculate:
 //!
 //! - the initial azimuth and length of a geodesic between two positions;
 //! - the along track distance and across track distance of a position relative to a geodesic;
 //! - and the intersection of a pair of geodesics.
+//! 
+//! See: [geodesic algorithms](https://via-technology.aero/navigation/geodesic-algorithms/).
 //!
 //! ## Design
 //!
@@ -73,8 +75,8 @@
 //! intersections between geodesics.
 //!
 //! The `Ellipsoid` class represents an ellipsoid of revolution.
-//! The static `WGS84_ELLIPSOID` represents the WGS 84 `Ellipsoid` which is used
-//! by the `Geodesic` `From` traits to create `Geodesic`s on the WGS 84 `Ellipsoid`.
+//! The static `WGS84_ELLIPSOID` represents the WGS-84 `Ellipsoid` which is used
+//! by the `Geodesic` `From` traits to create `Geodesic`s on the WGS-84 `Ellipsoid`.
 //!
 //! The library depends upon the following crates:
 //!
@@ -156,7 +158,7 @@ impl Ellipsoid {
         }
     }
 
-    /// Construct an `Ellipsoid` with the WGS 84 parameters.
+    /// Construct an `Ellipsoid` with the WGS-84 parameters.
     #[must_use]
     pub fn wgs84() -> Self {
         Self::new(ellipsoid::wgs84::A, ellipsoid::wgs84::F)
@@ -275,11 +277,12 @@ impl Ellipsoid {
     }
 }
 
-// A static instance of the WGS 84 `Ellipsoid`.
-// Note: uses [lazy_static](https://crates.io/crates/lazy_static)
-// instead of [std::sync::OnceLock](https://doc.rust-lang.org/std/sync/struct.OnceLock.html)
-// because this crate is `no_std`.
 lazy_static! {
+    /// A static instance of the WGS-84 `Ellipsoid`.
+    /// 
+    /// Note: uses [lazy_static](https://crates.io/crates/lazy_static)
+    /// instead of [std::sync::OnceLock](https://doc.rust-lang.org/std/sync/struct.OnceLock.html)
+    /// because this crate is `no_std`.
     pub static ref WGS84_ELLIPSOID: Ellipsoid = Ellipsoid::wgs84();
 }
 
@@ -387,7 +390,7 @@ impl<'a> Geodesic<'a> {
         // Calculate eps and c1 for calculating coefficients
         let eps = ellipsoid.calculate_epsilon(azi0.sin());
         let c1 = ellipsoid::coefficients::evaluate_coeffs_c1(eps);
-        Geodesic {
+        Self {
             beta,
             lon,
             azi,
@@ -912,7 +915,7 @@ impl<'a> Geodesic<'a> {
 }
 
 impl From<(&LatLong, Angle, Radians)> for Geodesic<'_> {
-    /// Construct a `Geodesic` on the WGS 84  `Ellipsoid` using the "direct"
+    /// Construct a `Geodesic` on the WGS-84  `Ellipsoid` using the "direct"
     /// method with the length in `Radians`.
     /// @pre |lat| <= 90.0 degrees.
     /// * `a` - the start position in geodetic coordinates.
@@ -925,7 +928,7 @@ impl From<(&LatLong, Angle, Radians)> for Geodesic<'_> {
 }
 
 impl From<(&LatLong, Angle, Metres)> for Geodesic<'_> {
-    /// Construct a `Geodesic` on the WGS 84 `Ellipsoid` using the "direct"
+    /// Construct a `Geodesic` on the WGS-84 `Ellipsoid` using the "direct"
     /// method with the length in metres.
     /// @pre |lat| <= 90.0 degrees.
     /// * `a` - the start position in geodetic coordinates.
@@ -938,7 +941,7 @@ impl From<(&LatLong, Angle, Metres)> for Geodesic<'_> {
 }
 
 impl From<(&LatLong, &LatLong)> for Geodesic<'_> {
-    /// Construct a `Geodesic` between a pair of positions on the WGS 84
+    /// Construct a `Geodesic` between a pair of positions on the WGS-84
     /// `Ellipsoid`, the "indirect" method.
     /// @pre |lat| <= 90.0 degrees.
     /// * `a`, `b` - the start and finish positions in geodetic coordinates.

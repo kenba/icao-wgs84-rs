@@ -7,22 +7,20 @@
 [![codecov](https://codecov.io/gh/kenba/icao-wgs84-rs/graph/badge.svg?token=85TJX5VAHF)](https://codecov.io/gh/kenba/icao-wgs84-rs)
 
 A library for performing geometric calculations on the
-[WGS84](https://en.wikipedia.org/wiki/World_Geodetic_System) ellipsoid,
-see *Figure 1*.
+[WGS-84](https://www.icao.int/NACC/Documents/Meetings/2014/ECARAIM/REF08-Doc9674.pdf)
+ellipsoid, see *Figure 1*.
 
 <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/3/3e/WGS84_mean_Earth_radius.svg/800px-WGS84_mean_Earth_radius.svg.png" width="400">
 
-*Figure 1 The WGS84 Ellipsoid (not to scale)*
+*Figure 1 The WGS-84 Ellipsoid (not to scale)  
+[Cmglee](https://commons.wikimedia.org/wiki/User:Cmglee), [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0), via Wikimedia Commons*
 
-WGS84 has become the de facto standard for satellite navigation since its adoption
-by the Navstar [Global Positioning System](https://en.wikipedia.org/wiki/Global_Positioning_System)
-(GPS) and US president Ronald Reagan's 1983 decision to make GPS available for civilian use
-after airliner [KAL 007](https://en.wikipedia.org/wiki/Korean_Air_Lines_Flight_007)
-was shot down by Soviet interceptor aircraft when it strayed into
-prohibited airspace due to navigational errors.
+[WGS-84](https://www.icao.int/NACC/Documents/Meetings/2014/ECARAIM/REF08-Doc9674.pdf)
+has become the de facto standard for satellite navigation since its adoption
+by the Navstar Global Positioning System ([GPS](https://www.gps.gov/systems/gps/performance/accuracy/)) and the USA making GPS available for civilian use in 1983.
 
-This library uses the WGS84 primary parameters defined in Tab. 3-1 of the
-[ICAO WGS 84 Implementation Manual](https://www.icao.int/safety/pbn/Documentation/EUROCONTROL/Eurocontrol%20WGS%2084%20Implementation%20Manual.pdf).
+This library uses the WGS-84 primary parameters defined in Table 3-1 of the
+[ICAO WGS-84 Implementation Manual](https://www.icao.int/NACC/Documents/Meetings/2014/ECARAIM/REF08-Doc9674.pdf).
 
 ## Geodesic navigation
 
@@ -32,16 +30,18 @@ the equivalent of straight line segments in planar geometry or
 [great circles](https://en.wikipedia.org/wiki/Great_circle) on the surface of a
 sphere, see *Figure 2*.
 
-<img src="https://upload.wikimedia.org/wikipedia/commons/thumb/c/cb/Geodesic_problem_on_an_ellipsoid.svg/1024px-Geodesic_problem_on_an_ellipsoid.svg.png" width="400">
+<img src="https://via-technology.aero/img/navigation/ellipsoid/sphere_mercator_long_geodesic.png" width="600">
 
-*Figure 2 A geodesic between points A and B*
+*Figure 2 A geodesic (orange) path and great circle (blue) path*
 
 This library uses the correspondence between geodesics on an ellipsoid
-and great-circles on the auxiliary sphere together with 3D vectors to calculate:
+and great-circles on an auxiliary sphere together with 3D vectors to calculate:
 
 - the initial azimuth and length of a geodesic between two positions;
 - the along track distance and across track distance of a position relative to a geodesic;
 - and the intersection of a pair of geodesics.
+
+See: [geodesic algorithms](https://via-technology.aero/navigation/geodesic-algorithms/).
 
 ## Design
 
@@ -50,11 +50,11 @@ The library is based on Charles Karney's [GeographicLib](https://geographiclib.s
 Like `GeographicLib`, it models geodesic paths as great circles on
 the surface of an auxiliary sphere. However, it also uses vectors to
 calculate along track distances, across track distances and
-intersections between geodesics.
+intersections between geodesics.  
 
 The `Ellipsoid` class represents an ellipsoid of revolution.  
-The static `WGS84_ELLIPSOID` represents the WGS 84 `Ellipsoid` which is used
-by the `Geodesic` `From` traits to create `Geodesic`s on the WGS 84 `Ellipsoid`.
+The static `WGS84_ELLIPSOID` represents the WGS-84 `Ellipsoid` which is used
+by the `Geodesic` `From` traits to create `Geodesic`s on the WGS-84 `Ellipsoid`.
 
 The library depends upon the following crates:
 
@@ -191,7 +191,7 @@ assert!(is_within_tolerance(-14.56385574430775, lat_lon.lon().0, 1e-6));
 
 The integration test uses Charles Karney's
 [Test data for geodesics](https://geographiclib.sourceforge.io/C++/doc/geodesic.html#testgeod) to verify geodesic azimuth and distance calculations between
-positions on the WGS84 ellipsoid.
+positions on the WGS-84 ellipsoid.
 Run the tests using:
 
 ```
