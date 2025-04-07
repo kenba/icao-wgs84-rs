@@ -40,7 +40,7 @@
 //! by the Navstar Global Positioning System
 //! ([GPS](https://www.gps.gov/systems/gps/performance/accuracy/))
 //! and the USA making GPS available for civilian use in 1983.
-//! 
+//!
 //! This library uses the WGS-84 primary parameters defined in Tab. 3-1 of the
 //! [ICAO WGS-84 Implementation Manual](https://www.icao.int/safety/pbn/Documentation/EUROCONTROL/Eurocontrol%20WGS%2084%20Implementation%20Manual.pdf).
 //!
@@ -62,7 +62,7 @@
 //! - the initial azimuth and length of a geodesic between two positions;
 //! - the along track distance and across track distance of a position relative to a geodesic;
 //! - and the intersection of a pair of geodesics.
-//! 
+//!
 //! See: [geodesic algorithms](https://via-technology.aero/navigation/geodesic-algorithms/).
 //!
 //! ## Design
@@ -279,7 +279,7 @@ impl Ellipsoid {
 
 lazy_static! {
     /// A static instance of the WGS-84 `Ellipsoid`.
-    /// 
+    ///
     /// Note: uses [lazy_static](https://crates.io/crates/lazy_static)
     /// instead of [std::sync::OnceLock](https://doc.rust-lang.org/std/sync/struct.OnceLock.html)
     /// because this crate is `no_std`.

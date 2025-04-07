@@ -1,4 +1,4 @@
-// Copyright (c) 2024 Ken Barker
+// Copyright (c) 2024-2025 Ken Barker
 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"),
@@ -162,10 +162,8 @@ pub fn calculate_aux_intersection_distances(
 
             // Calculate the intersection of the poles at the mid points of the unit
             // sphere great circle arcs
-            let (a1mid, pole1mid) =
-                g1.aux_point_and_pole(Radians(0.5 * g1.aux_length().0));
-            let (a2mid, pole2mid) =
-                g2.aux_point_and_pole(Radians(0.5 * g2.aux_length().0));
+            let (a1mid, pole1mid) = g1.aux_point_and_pole(Radians(0.5 * g1.aux_length().0));
+            let (a2mid, pole2mid) = g2.aux_point_and_pole(Radians(0.5 * g2.aux_length().0));
 
             // Determine whether the great circles on the unit sphere are coincident
             vector::intersection::calculate_intersection(&pole1mid, &pole2mid).map_or_else(
