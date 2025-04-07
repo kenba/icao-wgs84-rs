@@ -27,12 +27,12 @@
 //!
 //! [Baselga and Martinez-Llario(2017)](https://www.researchgate.net/publication/321358300_Intersection_and_point-to-line_solutions_for_geodesics_on_the_ellipsoid)
 //! solve geodesic intersection and point-to-line problems by using the
-//! correspondence between geodesics on an ellipsoid and great-circles on the
-//! auxiliary sphere.
+//! correspondence between geodesics on an ellipsoid and great-circles on a
+//! unit sphere.
 //!
 //! Nick Korbey and I [Barker and Korbey(2019)](https://www.researchgate.net/publication/335749834_Geodesic_Geometry)
 //! developed Baselga and Martinez-Llario's algorithms by using vectors to
-//! solve geodesic intersection and point-to-line problems on the auxiliary
+//! solve geodesic intersection and point-to-line problems on the unit
 //! sphere.
 //!
 //! [Karney(2023)](https://arxiv.org/abs/2308.00495) also developed Baselga and
@@ -40,8 +40,8 @@
 //! geodesic intersections on both oblate and prolate ellipsoids.
 //!
 //! This `intersection` module calculates initial great-circle intersection
-//! distances on the auxiliary sphere and then refines the intersection
-//! distances using great-circles on the auxiliary sphere at the calculated
+//! distances on the unit sphere and then refines the intersection
+//! distances using great-circles on the unit sphere at the calculated
 //! intersection distances.
 
 use crate::{Geodesic, Radians};
@@ -160,8 +160,15 @@ pub fn calculate_aux_intersection_distances(
         } else {
             // The geodesics are NOT coincident
 
-            // Determine whether the great circles on the auxiliary sphere are coincident
-            vector::intersection::calculate_intersection(&pole1, &pole2).map_or_else(
+            // Calculate the intersection of the poles at the mid points of the unit
+            // sphere great circle arcs
+            let (a1mid, pole1mid) =
+                g1.aux_point_and_pole(Radians(0.5 * g1.aux_length().0));
+            let (a2mid, pole2mid) =
+                g2.aux_point_and_pole(Radians(0.5 * g2.aux_length().0));
+
+            // Determine whether the great circles on the unit sphere are coincident
+            vector::intersection::calculate_intersection(&pole1mid, &pole2mid).map_or_else(
                 || {
                     // This code should never be executed.
                     // The check for coincident geodesics should cover coincident great circles.
@@ -174,7 +181,7 @@ pub fn calculate_aux_intersection_distances(
                     (distances.0, distances.1, 0)
                 },
                 |c| {
-                    let centroid = 0.5 * (g1.mid_point() + g2.mid_point());
+                    let centroid = 0.5 * (a1mid + a2mid);
                     let use_antipodal_intersection =
                         vector::intersection::use_antipodal_point(&c, &centroid);
                     let c = if use_antipodal_intersection { -c } else { c };
@@ -273,7 +280,7 @@ mod tests {
             g.ellipsoid(),
         );
 
-        // 1mm precision in Radians on the auxiliary sphere
+        // 1mm precision in Radians on the unit sphere
         let precision = Radians(Metres(1e-3).0 / g.ellipsoid().a().0);
 
         // geodesics are coincident
