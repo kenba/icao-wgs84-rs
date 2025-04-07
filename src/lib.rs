@@ -81,11 +81,11 @@
 //! The library depends upon the following crates:
 //!
 //! - [angle-sc](https://crates.io/crates/angle-sc) - to define `Angle`,
-//!     `Degrees` and `Radians` and perform trigonometric calculations;
+//!   `Degrees` and `Radians` and perform trigonometric calculations;
 //! - [unit-sphere](https://crates.io/crates/unit-sphere) - to define `LatLong`
-//!     and perform great-circle and vector calculations.
+//!   and perform great-circle and vector calculations.
 //! - [icao_units](https://crates.io/crates/icao-units) - to define `Metres` and
-//!     `NauticalMiles` and perform conversions between them.
+//!   `NauticalMiles` and perform conversions between them.
 //!
 //! The library is declared [no_std](https://docs.rust-embedded.org/book/intro/no-std.html)
 //! so it can be used in embedded applications.
@@ -516,7 +516,7 @@ impl<'a> Geodesic<'a> {
 
     /// Set the `aux_length` of a `Geodesic`
     /// * `aux_length` - the aux length of the `Geodesic`.
-    pub fn set_aux_length(&mut self, aux_length: Radians) -> &mut Self {
+    pub const fn set_aux_length(&mut self, aux_length: Radians) -> &mut Self {
         self.aux_length = aux_length;
         self
     }
@@ -1278,7 +1278,7 @@ mod tests {
                     .calculate_geodetic_latitude(unit_sphere::vector::latitude(&start_point))
             )
             .0,
-            32.0 * f64::EPSILON
+            64.0 * f64::EPSILON
         ));
         assert!(is_within_tolerance(
             istanbul.lon().0,

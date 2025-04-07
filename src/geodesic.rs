@@ -123,7 +123,7 @@ fn calculate_reduced_length(
 /// Estimate the initial azimuth on the auxiliary sphere for a nearly antipodal arc.
 /// It calculates and solves the astroid problem.
 /// * `beta1`, `beta2` - the parametric latitudes of the start and finish points
-///     on the auxiliary sphere.
+///   on the auxiliary sphere.
 /// * `lambda12` - Longitude difference between start and finish points.
 ///
 /// returns the estimate of the initial azimuth on the auxiliary sphere.
@@ -180,7 +180,7 @@ pub fn calculate_cos_omega(beta: Angle, cos_azimuth: UnitNegRange) -> UnitNegRan
 /// Calculate the azimuth on the auxiliary sphere at `parametric` latitude
 /// beta2 given the `parametric` latitude beta1 and azimuth, `alpha1`.
 /// * `beta1`, `beta2` - the parametric latitudes of the start and finish points
-///     on the auxiliary sphere.
+///   on the auxiliary sphere.
 /// * `alpha1` - start point azimuth.
 ///
 /// returns the finish point azimuth.
@@ -465,7 +465,7 @@ fn find_azimuth_and_aux_length(
 /// Calculate the initial azimuth and great circle length between a pair
 /// of points on the auxiliary sphere.
 /// * `beta1`, `beta2` - the `parametric` latitudes of the start and finish
-///     points on the auxiliary sphere.
+///   points on the auxiliary sphere.
 /// * `delta_long` - the longitude difference on the auxiliary sphere.
 /// * `tolerance` - the tolerance to perform the calculation to.
 /// * `ellipsoid` - the `Ellipsoid`.

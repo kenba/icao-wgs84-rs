@@ -80,9 +80,9 @@ pub fn calculate_geodesic_intersection_distances(
         iterations += 1;
 
         let c = if use_antipodal_intersection {
-            vector::intersection::calculate_intersection_point(&pole2, &pole1)
+            vector::intersection::calculate_intersection(&pole2, &pole1)
         } else {
-            vector::intersection::calculate_intersection_point(&pole1, &pole2)
+            vector::intersection::calculate_intersection(&pole1, &pole2)
         };
         match c {
             Some(c) => {
@@ -140,11 +140,11 @@ pub fn calculate_aux_intersection_distances(
 
         // If the second geodesic start point lies on the first geodesic
         let (_, pole3) = g3.aux_point_and_pole(Radians(0.0));
-        if vector::intersection::calculate_intersection_point(&pole1, &pole3).is_none() {
+        if vector::intersection::calculate_intersection(&pole1, &pole3).is_none() {
             let (atd, _, iterations) = g1.calculate_aux_atd_and_xtd(g2.beta(), g2.lon(), precision);
             // If the second geodesic end point lies on the first geodesic
             let (_, pole4) = g3.aux_point_and_pole(atd);
-            if vector::intersection::calculate_intersection_point(&pole2, &pole4).is_none() {
+            if vector::intersection::calculate_intersection(&pole2, &pole4).is_none() {
                 // The geodesics are coincident
                 let distances = vector::intersection::calculate_coincident_arc_distances(
                     atd,
@@ -161,7 +161,7 @@ pub fn calculate_aux_intersection_distances(
             // The geodesics are NOT coincident
 
             // Determine whether the great circles on the auxiliary sphere are coincident
-            vector::intersection::calculate_intersection_point(&pole1, &pole2).map_or_else(
+            vector::intersection::calculate_intersection(&pole1, &pole2).map_or_else(
                 || {
                     // This code should never be executed.
                     // The check for coincident geodesics should cover coincident great circles.
