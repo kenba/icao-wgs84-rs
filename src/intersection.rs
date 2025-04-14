@@ -117,19 +117,18 @@ pub fn calculate_aux_intersection_distances(
     g2: &Geodesic,
     precision: Radians,
 ) -> (Radians, Radians, u32) {
-    // The Geodesics MUST be on the same `Ellipsoid`
-    assert!(g1.ellipsoid() == g2.ellipsoid());
-
     // The minimum sin angle between coincident geodesics
     const MIN_SIN_ANGLE: f64 = 16384.0 * f64::EPSILON;
+
+    // The Geodesics MUST be on the same `Ellipsoid`
+    assert!(g1.ellipsoid() == g2.ellipsoid());
 
     // Convert precision in `Radians` to the square of Euclidean precision.
     let e_precision = great_circle::gc2e_distance(precision);
     let sq_precision = e_precision * e_precision;
 
     // if the start points are within precision of each other
-    let delta_lon = g2.lon() - g1.lon();
-    let sq_d = great_circle::sq_euclidean_distance(g1.beta(), g2.beta(), delta_lon);
+    let sq_d = vector::sq_distance(&g1.a(), &g2.a());
     if sq_d < sq_precision {
         (Radians(0.0), Radians(0.0), 0)
     } else {
@@ -137,7 +136,7 @@ pub fn calculate_aux_intersection_distances(
         let (g3_azi, g3_aux_length, _) = geodesic::aux_sphere_azimuth_length(
             g1.beta(),
             g2.beta(),
-            delta_lon,
+            g2.lon() - g1.lon(),
             Radians(great_circle::MIN_VALUE),
             g1.ellipsoid(),
         );

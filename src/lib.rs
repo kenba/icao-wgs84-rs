@@ -533,6 +533,12 @@ impl<'a> Geodesic<'a> {
         self.ellipsoid
     }
 
+    /// Accessor for the start point on the unit sphere.
+    #[must_use]
+    pub fn a(&self) -> Vector3d {
+        unit_sphere::vector::to_point(self.beta, self.lon)
+    }
+
     /// Convert a distance in metres on the ellipsoid to radians on the
     /// auxiliary sphere.
     /// * `distance_m` - the distance in metres along the Geodesic.
