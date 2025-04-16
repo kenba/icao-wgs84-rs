@@ -485,23 +485,22 @@ pub fn aux_sphere_azimuths_length(
     tolerance: Radians,
     ellipsoid: &Ellipsoid,
 ) -> (Angle, Radians, Angle, u32) {
-    // Determine whether on a meridian, i.e. a great circle which passes through the North and South poles
     let gc_azimuth = great_circle::calculate_gc_azimuth(beta1, beta2, delta_long);
+    let gc_length = great_circle::calculate_gc_distance(beta1, beta2, delta_long);
 
-    // gc_azimuth is 0° or 180°
+    // Determine whether on a meridian, i.e. a great circle which passes through the North and South poles
     if gc_azimuth.abs().sin().0 < great_circle::MIN_VALUE {
-        // Calculate the meridian distance on the axillary sphere
-        let meridian_length = great_circle::calculate_gc_distance(beta1, beta2, delta_long);
+        // gc_azimuth is 0° or 180°
+
         // Use opposite azimuth if points on opposite meridians
         let end_azimuth = if delta_long.cos().0 < 0.0 {
             gc_azimuth.opposite()
         } else {
             gc_azimuth
         };
-        (gc_azimuth, meridian_length, end_azimuth, 0)
+        (gc_azimuth, gc_length, end_azimuth, 0)
     } else {
         // Determine whether on an equatorial path, i.e. the circle around the equator.
-        let gc_length = great_circle::calculate_gc_distance(beta1, beta2, delta_long);
         // gc_azimuth is +/-90° and both latitudes are very close to the equator
         if (gc_azimuth.cos().0 < great_circle::MIN_VALUE)
             && (beta1.abs().sin().0 < f64::EPSILON)
