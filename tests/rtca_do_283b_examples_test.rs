@@ -71,7 +71,7 @@ fn test_rtca_do_283b_examples() -> Result<(), Box<dyn std::error::Error>> {
 
         let a = LatLong::new(lat1, lon1);
         let b = LatLong::new(lat2, lon2);
-        let result = geodesic::calculate_azimuth_aux_length(
+        let result = geodesic::calculate_azimuths_aux_length(
             &a,
             &b,
             Radians(great_circle::MIN_VALUE),
@@ -89,7 +89,7 @@ fn test_rtca_do_283b_examples() -> Result<(), Box<dyn std::error::Error>> {
         println!(
             "{},{},{},{},{}",
             index + 1,
-            result.2,
+            result.3,
             delta_azimuth,
             delta_length_m,
             delta_error_m

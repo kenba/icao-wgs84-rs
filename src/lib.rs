@@ -286,14 +286,14 @@ lazy_static! {
     pub static ref WGS84_ELLIPSOID: Ellipsoid = Ellipsoid::wgs84();
 }
 
-/// Calculate the azimuth and geodesic length (in metres) between a pair
+/// Calculate the azimuths and geodesic length (in metres) between a pair
 /// of positions on the ellipsoid.
 /// * `a`, `b` - the start and finish positions in geodetic coordinates.
 /// * `tolerance` - the tolerance to perform the calculation to.
 /// * `ellipsoid` - the `Ellipsoid`.
 ///
-/// returns the azimuth at the start position and the length of the geodesic
-/// on the ellipsoid in metres.
+/// returns the azimuth at the start and end positions and the length of 
+/// he geodesic on the ellipsoid in metres.
 ///
 /// # Examples
 /// ```
@@ -304,28 +304,31 @@ lazy_static! {
 ///
 /// let istanbul = LatLong::new(Degrees(42.0), Degrees(29.0));
 /// let washington = LatLong::new(Degrees(39.0), Degrees(-77.0));
-/// let (azimuth, length) = calculate_azimuth_and_geodesic_length(&istanbul, &washington, tolerance, &WGS84_ELLIPSOID);
+/// let (azimuth, length, end_azimuth) = calculate_azimuths_and_geodesic_length(&istanbul, &washington, tolerance, &WGS84_ELLIPSOID);
 ///
 /// let azimuth_degrees = Degrees::from(azimuth);
 /// println!("Istanbul-Washington initial azimuth: {:?}", azimuth_degrees.0);
 ///
 /// let distance_nm = NauticalMiles::from(length);
 /// println!("Istanbul-Washington distance: {:?}", distance_nm);
-/// ```
+/// 
+/// let azimuth_degrees = Degrees::from(end_azimuth.opposite());
+/// println!("Washington-Istanbul initial azimuth: {:?}", azimuth_degrees.0);
 #[must_use]
-pub fn calculate_azimuth_and_geodesic_length(
+pub fn calculate_azimuths_and_geodesic_length(
     a: &LatLong,
     b: &LatLong,
     tolerance: Radians,
     ellipsoid: &Ellipsoid,
-) -> (Angle, Metres) {
-    let (alpha1, gc_distance, _) =
-        geodesic::calculate_azimuth_aux_length(a, b, tolerance, ellipsoid);
+) -> (Angle, Metres, Angle) {
+    let (alpha1, gc_distance, alpha2, _) =
+        geodesic::calculate_azimuths_aux_length(a, b, tolerance, ellipsoid);
     let beta1 =
         ellipsoid::calculate_parametric_latitude(Angle::from(a.lat()), ellipsoid.one_minus_f());
     (
         alpha1,
         geodesic::convert_radians_to_metres(beta1, alpha1, gc_distance, ellipsoid),
+        alpha2,
     )
 }
 
@@ -459,8 +462,8 @@ impl<'a> Geodesic<'a> {
         tolerance: Radians,
         ellipsoid: &'a Ellipsoid,
     ) -> Self {
-        let (azimuth, aux_length, _) =
-            geodesic::calculate_azimuth_aux_length(a, b, tolerance, ellipsoid);
+        let (azimuth, aux_length, _, _) =
+            geodesic::calculate_azimuths_aux_length(a, b, tolerance, ellipsoid);
         let a_lat = Angle::from(a.lat());
         // if a is at the North or South pole
         if a_lat.cos().0 < great_circle::MIN_VALUE {
@@ -486,7 +489,7 @@ impl<'a> Geodesic<'a> {
         let lon = unit_sphere::vector::longitude(a);
         let beta_b = unit_sphere::vector::latitude(b);
         let delta_lon = unit_sphere::vector::delta_longitude(b, a);
-        let (azi, aux_length, _) = geodesic::aux_sphere_azimuth_length(
+        let (azi, aux_length, _, _) = geodesic::aux_sphere_azimuths_length(
             beta,
             beta_b,
             delta_lon,
@@ -816,7 +819,7 @@ impl<'a> Geodesic<'a> {
                 let azi_x = self.aux_azimuth(atd);
 
                 // calculate the geodesic azimuth and length to the point from the Geodesic position at atd
-                let (azi_p, length, _) = geodesic::aux_sphere_azimuth_length(
+                let (azi_p, length, _, _) = geodesic::aux_sphere_azimuths_length(
                     beta_x,
                     beta,
                     lon - lon_x,
@@ -1105,7 +1108,7 @@ mod tests {
             Degrees(109.666857465735641205),
         );
 
-        let result = calculate_azimuth_and_geodesic_length(
+        let result = calculate_azimuths_and_geodesic_length(
             &latlon1,
             &latlon2,
             Radians(great_circle::MIN_VALUE),
@@ -1113,6 +1116,7 @@ mod tests {
         );
         assert_eq!(84.846843174846, Degrees::from(result.0).0);
         assert!(is_within_tolerance(12161089.9991805, (result.1).0, 1e-8));
+        // assert_eq!(84.846843174846, Degrees::from(result.2).0);
     }
 
     #[test]
@@ -1128,7 +1132,7 @@ mod tests {
             Degrees(178.688979582629224039),
         );
 
-        let result = calculate_azimuth_and_geodesic_length(
+        let result = calculate_azimuths_and_geodesic_length(
             &latlon1,
             &latlon2,
             Radians(great_circle::MIN_VALUE),
@@ -1155,7 +1159,7 @@ mod tests {
             Degrees(179.160624688175359763),
         );
 
-        let result = calculate_azimuth_and_geodesic_length(
+        let result = calculate_azimuths_and_geodesic_length(
             &latlon1,
             &latlon2,
             Radians(great_circle::MIN_VALUE),
@@ -1173,7 +1177,7 @@ mod tests {
     fn test_calculate_azimuth_and_geodesic_length_karney() {
         let istanbul = LatLong::new(Degrees(42.0), Degrees(29.0));
         let washington = LatLong::new(Degrees(39.0), Degrees(-77.0));
-        let (azimuth, length) = calculate_azimuth_and_geodesic_length(
+        let (azimuth, length, end_azimuth) = calculate_azimuths_and_geodesic_length(
             &istanbul,
             &washington,
             Radians(great_circle::MIN_VALUE),
@@ -1188,6 +1192,10 @@ mod tests {
 
         let distance_nm = NauticalMiles::from(length);
         println!("Istanbul-Washington distance: {:?}", distance_nm);
+
+        let azimuth_degrees = Degrees::from(end_azimuth.opposite());
+        assert_eq!(47.735339288362425, azimuth_degrees.0);
+        println!("Washington-Istanbul azimuth: {:?}", azimuth_degrees.0);
     }
 
     #[test]

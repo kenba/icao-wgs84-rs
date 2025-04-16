@@ -60,6 +60,7 @@ fn test_geodesic_examples() -> Result<(), Box<dyn std::error::Error>> {
     let dep_azis = objects[2].f64()?.iter();
     let arr_lats = objects[3].f64()?.iter();
     let arr_lons = objects[4].f64()?.iter();
+    let arr_azis = objects[5].f64()?.iter();
     let distances = objects[6].f64()?.iter();
     let aux_distances = objects[7].f64()?.iter();
     let combined = multizip((
@@ -67,31 +68,32 @@ fn test_geodesic_examples() -> Result<(), Box<dyn std::error::Error>> {
         dep_azis,
         arr_lats,
         arr_lons,
+        arr_azis,
         distances,
         aux_distances,
     ));
 
     let mut iterations = 0;
-    for (index, (lat1, azi1, lat2, lon2, d_metres, d_degrees)) in combined.enumerate() {
+    for (index, (lat1, azi1, lat2, lon2, azi2, d_metres, d_degrees)) in combined.enumerate() {
         let lat1 = Degrees(lat1.unwrap());
         let lon1 = Degrees(0.0);
         let lat2 = Degrees(lat2.unwrap());
         let lon2 = Degrees(lon2.unwrap());
         let azi1 = Degrees(azi1.unwrap());
-        // let azi2 = Degrees(azi2.unwrap());
+        let azi2 = Degrees(azi2.unwrap());
         let d_metres = Metres(d_metres.unwrap());
         let d_degrees = Degrees(d_degrees.unwrap());
 
         // panic!("lon2; {:?}", lon2);
         let a = LatLong::new(lat1, lon1);
         let b = LatLong::new(lat2, lon2);
-        let result = geodesic::calculate_azimuth_aux_length(
+        let result = geodesic::calculate_azimuths_aux_length(
             &a,
             &b,
             Radians(great_circle::MIN_VALUE),
             &WGS84_ELLIPSOID,
         );
-        iterations += result.2;
+        iterations += result.3;
 
         let delta_azimuth = libm::fabs(azi1.0 - Degrees::from(result.0).0);
         // reduce tolerance for entries running between or close to vertices
@@ -108,6 +110,15 @@ fn test_geodesic_examples() -> Result<(), Box<dyn std::error::Error>> {
             panic!(
                 "length, line: {:?} delta: {:?} length: {:?} delta_long: {:?} ",
                 index, delta_length, d_degrees, lon2
+            );
+        }
+
+        // Compare end_azimuths
+        let delta_azimuth = libm::fabs(azi2.0 - Degrees::from(result.2).0);
+        if azimuth_tolerance < delta_azimuth {
+            panic!(
+                "end azimuth, line: {:?} delta: {:?} azimuth: {:?} delta_long: {:?} ",
+                index, delta_azimuth, azi2, lon2
             );
         }
 

@@ -133,7 +133,7 @@ pub fn calculate_aux_intersection_distances(
         (Radians(0.0), Radians(0.0), 0)
     } else {
         // Calculate geodesic path between start positions
-        let (g3_azi, g3_aux_length, _) = geodesic::aux_sphere_azimuth_length(
+        let (g3_azi, g3_aux_length, g3_end_azi, _) = geodesic::aux_sphere_azimuths_length(
             g1.beta(),
             g2.beta(),
             g2.lon() - g1.lon(),
@@ -150,13 +150,11 @@ pub fn calculate_aux_intersection_distances(
             g3_aux_length
         };
 
-        let geodesics_may_be_coincident = delta_azimuth1_3.sin().abs().0 < MIN_SIN_ANGLE;
-        if geodesics_may_be_coincident {
-            let g3 = Geodesic::new(g1.beta(), g1.lon(), g3_azi, g3_aux_length, g1.ellipsoid());
-            let delta_azimuth2_3 = g2.azi() - g3.aux_azimuth(g3_aux_length);
-
-            let geodesics_are_coincident = delta_azimuth2_3.sin().abs().0 < MIN_SIN_ANGLE;
-            if geodesics_are_coincident {
+        if delta_azimuth1_3.sin().abs().0 < MIN_SIN_ANGLE {
+            // The geodesics may be coincident
+            let delta_azimuth2_3 = g2.azi() - g3_end_azi;
+            if delta_azimuth2_3.sin().abs().0 < MIN_SIN_ANGLE {
+                // The geodesics are coincident
                 let distances = vector::intersection::calculate_coincident_arc_distances(
                     atd,
                     reciprocal,
