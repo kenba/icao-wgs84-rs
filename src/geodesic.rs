@@ -18,7 +18,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-//! The geodesic module contains functions for calculating the geodesic path
+//! The geodesic module contains functions for calculating the geodesic segment
 //! between two points on the surface of an ellipsoid.
 //!
 //! See CFF Karney: [Algorithms for geodesics](https://arxiv.org/pdf/1109.4448.pdf).
@@ -291,7 +291,8 @@ fn estimate_initial_azimuth(
 /// * `tolerance` - the tolerance to perform the calculation to in Radians.
 ///
 /// returns the azimuth and great circle length on the auxiliary sphere at the
-/// start of the geodesic and the number of iterations required to calculate them.
+/// start of the geodesic segment and the number of iterations required to
+/// calculate them.
 #[allow(clippy::similar_names)]
 #[must_use]
 fn find_azimuth_length_newtons_method(
@@ -388,9 +389,9 @@ fn find_azimuth_length_newtons_method(
 /// Find the azimuths and great circle length on the auxiliary sphere.
 ///
 /// It adjusts the latitudes and longitude difference so that the azimuth of the
-/// geodesic lies between 0° and 90°.
+/// geodesic segment lies between 0° and 90°.
 /// It calls `find_azimuth_length_newtons_method` and then changes the resulting
-/// azimuth to match the orientation of the geodesic.
+/// azimuth to match the orientation of the geodesic segment.
 ///
 /// * `beta_a`, `beta_b` - the `parametric` latitudes of the start and finish points.
 /// * `lambda12` - Longitude difference between start and finish points.
@@ -398,12 +399,12 @@ fn find_azimuth_length_newtons_method(
 /// * `tolerance` - the tolerance to perform the calculation to in Radians.
 /// * `ellipsoid` - the `Ellipsoid`.
 ///
-/// returns the azimuth at the start of the geodesic, the great circle length
-/// on the auxiliary sphere, the azimuth at the end of geodesic
-/// and the number of iterations required to calculate them.
+/// returns the azimuth at the start of the geodesic segment, the great circle
+/// arc length on the auxiliary sphere, the azimuth at the end of
+/// geodesic segment and the number of iterations required to calculate them.
 #[allow(clippy::similar_names)]
 #[must_use]
-fn find_azimuths_and_aux_length(
+fn find_azimuths_and_arc_length(
     beta_a: Angle,
     beta_b: Angle,
     lambda12: Angle,
@@ -426,7 +427,7 @@ fn find_azimuths_and_aux_length(
     // Use positive lambda12, so all azimuths are positive
     let abs_lambda12 = lambda12.abs();
 
-    // Estimate the azimuth at the start of the geodesic
+    // Estimate the azimuth at the start of the geodesic segment 
     let antipodal_arc_threshold: f64 = core::f64::consts::PI * ellipsoid.one_minus_f();
     let alpha0 = if antipodal_arc_threshold < gc_length.0 {
         estimate_antipodal_initial_azimuth(beta1, beta2, abs_lambda12, ellipsoid)
@@ -474,9 +475,9 @@ fn find_azimuths_and_aux_length(
 /// * `tolerance` - the tolerance to perform the calculation to.
 /// * `ellipsoid` - the `Ellipsoid`.
 ///
-/// returns the azimuth at the start of the geodesic, the great circle length
-/// on the auxiliary sphere, the azimuth at the end of geodesic
-/// and the number of iterations required to calculate them.
+/// returns the azimuth at the start of the geodesic segment, the great circle 
+/// arc length on the auxiliary sphere, the azimuth at the end of
+/// geodesic segment and the number of iterations required to calculate them.
 #[must_use]
 pub fn aux_sphere_azimuths_length(
     beta1: Angle,
@@ -511,7 +512,7 @@ pub fn aux_sphere_azimuths_length(
             (gc_azimuth, equatorial_length, gc_azimuth, 0)
         } else {
             // Iterate to find the azimuth and length on the axillary sphere
-            find_azimuths_and_aux_length(beta1, beta2, delta_long, gc_length, tolerance, ellipsoid)
+            find_azimuths_and_arc_length(beta1, beta2, delta_long, gc_length, tolerance, ellipsoid)
         }
     }
 }
@@ -522,9 +523,9 @@ pub fn aux_sphere_azimuths_length(
 /// * `tolerance` - the tolerance to perform the calculation to.
 /// * `ellipsoid` - the `Ellipsoid`.
 ///
-/// returns the azimuth at the start of the geodesic, the great circle length
-/// on the auxiliary sphere, the azimuth at the end of geodesic
-/// and the number of iterations required to calculate them.
+/// returns the azimuth at the start of the geodesic segment, the great circle
+/// arc length on the auxiliary sphere, the azimuth at the end of 
+/// geodesic segment and the number of iterations required to calculate them.
 #[must_use]
 pub fn calculate_azimuths_aux_length(
     a: &LatLong,
@@ -678,20 +679,20 @@ mod tests {
 
         let tolerance = Radians(great_circle::MIN_VALUE);
 
-        // Northbound geodesic along a meridian
+        // Northbound geodesic segment along a meridian
         let result = calculate_azimuths_aux_length(&latlon1, &latlon2, tolerance, &WGS84_ELLIPSOID);
         assert_eq!(0.0, Degrees::from(result.0).0);
         assert_eq!(2.6163378712682306, (result.1).0);
         assert_eq!(0.0, Degrees::from(result.2).0);
 
-        // Southbound geodesic along a meridian
+        // Southbound geodesic segment along a meridian
         let result = calculate_azimuths_aux_length(&latlon2, &latlon1, tolerance, &WGS84_ELLIPSOID);
         assert_eq!(180.0, Degrees::from(result.0).0);
         assert_eq!(2.6163378712682306, (result.1).0);
         assert_eq!(180.0, Degrees::from(result.2).0);
 
-        // Northbound geodesic past the North pole
-        let latlon3 = LatLong::new(Degrees(80.0), Degrees(-140.0));
+        // Northbound geodesic segment past the North pole
+        let latlon3: LatLong = LatLong::new(Degrees(80.0), Degrees(-140.0));
         let result = calculate_azimuths_aux_length(&latlon2, &latlon3, tolerance, &WGS84_ELLIPSOID);
         assert_eq!(0.0, Degrees::from(result.0).0);
         assert_eq!(0.3502163200513691, (result.1).0);
@@ -705,19 +706,19 @@ mod tests {
 
         let tolerance = Radians(great_circle::MIN_VALUE);
 
-        // Eastbound geodesic along the equator
+        // Eastbound geodesic segment along the equator
         let result = calculate_azimuths_aux_length(&latlon1, &latlon2, tolerance, &WGS84_ELLIPSOID);
         assert_eq!(90.0, Degrees::from(result.0).0);
         assert_eq!(1.5760806267286946, (result.1).0);
         assert_eq!(90.0, Degrees::from(result.2).0);
 
-        // Westbound geodesic along the equator
+        // Westbound geodesic segment along the equator
         let result = calculate_azimuths_aux_length(&latlon2, &latlon1, tolerance, &WGS84_ELLIPSOID);
         assert_eq!(-90.0, Degrees::from(result.0).0);
         assert_eq!(1.5760806267286946, (result.1).0);
         assert_eq!(-90.0, Degrees::from(result.2).0);
 
-        // Long Eastbound geodesic along the equator
+        // Long Eastbound geodesic segment along the equator
         let latlon3 = LatLong::new(Degrees(0.0), Degrees(135.0));
         let result = calculate_azimuths_aux_length(&latlon1, &latlon3, tolerance, &WGS84_ELLIPSOID);
         assert_eq!(90.0, Degrees::from(result.0).0);

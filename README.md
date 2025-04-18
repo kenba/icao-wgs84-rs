@@ -25,21 +25,21 @@ This library uses the WGS-84 primary parameters defined in Table 3-1 of the
 ## Geodesic navigation
 
 The shortest path between two points on the surface of an ellipsoid is a
-[geodesic](https://en.wikipedia.org/wiki/Geodesics_on_an_ellipsoid) -
+[geodesic segment](https://en.wikipedia.org/wiki/Geodesics_on_an_ellipsoid) -
 the equivalent of straight line segments in planar geometry or
-[great circles](https://en.wikipedia.org/wiki/Great_circle) on the surface of a
+[great circle](https://en.wikipedia.org/wiki/Great_circle) arcs on the surface of a
 sphere, see *Figure 2*.
 
 <img src="https://via-technology.aero/img/navigation/ellipsoid/sphere_mercator_long_geodesic.png" width="600">
 
-*Figure 2 A geodesic (orange) path and great circle (blue) path*
+*Figure 2 A geodesic (orange) segment and great circle (blue) arc*
 
-This library uses the correspondence between geodesics on an ellipsoid
-and great-circles on an auxiliary sphere together with 3D vectors to calculate:
+This library uses the correspondence between geodesic segments on an ellipsoid
+and great-circle arcs on a unit sphere together with 3D vectors to calculate:
 
-- the initial azimuth and length of a geodesic between two positions;
-- the along track distance and across track distance of a position relative to a geodesic;
-- and the intersection of a pair of geodesics.
+- the initial azimuth and length of a geodesic segment between two positions;
+- the along track distance and across track distance of a position relative to a geodesic segment;
+- and the intersection of a pair of geodesic segments.
 
 See: [geodesic algorithms](https://via-technology.aero/navigation/geodesic-algorithms/).
 
@@ -47,14 +47,14 @@ See: [geodesic algorithms](https://via-technology.aero/navigation/geodesic-algor
 
 The library is based on Charles Karney's [GeographicLib](https://geographiclib.sourceforge.io/) library.
 
-Like `GeographicLib`, it models geodesic paths as great circles on
-the surface of an auxiliary sphere. However, it also uses vectors to
+Like `GeographicLib`, it models geodesic segments as great circle arcs on
+the surface of a unit sphere. However, it also uses vectors to
 calculate along track distances, across track distances and
-intersections between geodesics.  
+intersections between geodesic segments.  
 
 The `Ellipsoid` class represents an ellipsoid of revolution.  
 The static `WGS84_ELLIPSOID` represents the WGS-84 `Ellipsoid` which is used
-by the `Geodesic` `From` traits to create `Geodesic`s on the WGS-84 `Ellipsoid`.
+by the `GeodesicSegment` `From` traits to create `GeodesicSegment`s on the WGS-84 `Ellipsoid`.
 
 The library depends upon the following crates:
 
@@ -73,9 +73,9 @@ so it can be used in embedded applications.
 
 ## Examples
 
-### Calculate geodesic initial azimuth and length
+### Calculate geodesic initial azimuths and length
 
-Calculate the initial azimuth (a.k.a bearing) in degrees and
+Calculate the initial azimuths (a.k.a bearing) in degrees and
 distance in Nautical Miles between two positions.
 
 ```rust
@@ -83,19 +83,23 @@ use icao_wgs84::*;
 
 let istanbul = LatLong::new(Degrees(42.0), Degrees(29.0));
 let washington = LatLong::new(Degrees(39.0), Degrees(-77.0));
-let (azimuth, length) = calculate_azimuth_and_geodesic_length(&istanbul, &washington, &WGS84_ELLIPSOID);
+let (azimuth, length, end_azimuth) = calculate_azimuths_and_geodesic_length(&istanbul, &washington, Radians(great_circle::MIN_VALUE), &WGS84_ELLIPSOID);
 
 let azimuth_degrees = Degrees::from(azimuth);
 println!("Istanbul-Washington initial azimuth: {:?}", azimuth_degrees.0);
 
 let distance_nm = NauticalMiles::from(length);
 println!("Istanbul-Washington distance: {:?}", distance_nm);
+
+let end_azimuth_degrees = Degrees::from(end_azimuth.opposite());
+println!("Washington-Istanbul initial azimuth: {:?}", end_azimuth_degrees.0);
+
 ```
 
 ### Calculate along track and across track distances
 
-Create a `Geodesic` between two positions and then calculate the
-along track and across track distances of a third position relative to the `Geodesic`.
+Create a `GeodesicSegment` between two positions and then calculate the
+along track and across track distances of a third position relative to the `GeodesicSegment`.
 
 The example is based on this reply from C. F. F. Karney :
 <https://sourceforge.net/p/geographiclib/discussion/1026621/thread/21aaff9f/#8a93>.  
@@ -104,12 +108,12 @@ The expected latitude and longitude are from Karney's reply:
 > Final result 54.92853149711691 -21.93729106604878
 
 Note: the across track distance (xtd) is negative because Reyjavik is on the
-right hand side of the `Geodesic`.  
+right hand side of the `GeodesicSegment`.  
 Across track distances are:
 
-- positive for positions to the left of the `Geodesic`,
-- negative for positions to the right of the `Geodesic`
-- and zero for positions within the precision of the `Geodesic`.
+- positive for positions to the left of the `GeodesicSegment`,
+- negative for positions to the right of the `GeodesicSegment`
+- and zero for positions within the precision of the `GeodesicSegment`.
 
 ```rust
 use icao_wgs84::*;
@@ -117,7 +121,7 @@ use angle_sc::is_within_tolerance;
 
 let istanbul = LatLong::new(Degrees(42.0), Degrees(29.0));
 let washington = LatLong::new(Degrees(39.0), Degrees(-77.0));
-let g1 = Geodesic::from(&istanbul, &washington);
+let g1 = GeodesicSegment::from(&istanbul, &washington);
 
 let azimuth_degrees = Degrees::from(g1.azimuth(Metres(0.0)));
 println!("Istanbul-Washington initial azimuth: {:?}", azimuth_degrees.0);
@@ -153,8 +157,8 @@ calculate the result.
 
 ### Calculate geodesic intersection point
 
-Create two `Geodesic`s, each between two positions and then calculate the
-distances from the geodesic start points to their intersection point.
+Create two `GeodesicSegment`s, each between two positions and then calculate the
+distances from the geodesic segment start points to their intersection point.
 
 The example is based on this reply from C. F. F. Karney :
 <https://sourceforge.net/p/geographiclib/discussion/1026621/thread/21aaff9f/#fe0a>  
@@ -175,8 +179,8 @@ let washington = LatLong::new(Degrees(39.0), Degrees(-77.0));
 let reyjavik = LatLong::new(Degrees(64.0), Degrees(-22.0));
 let accra = LatLong::new(Degrees(6.0), Degrees(0.0));
 
-let g1 = Geodesic::from((&istanbul, &washington));
-let g2 = Geodesic::from((&reyjavik, &accra));
+let g1 = GeodesicSegment::from((&istanbul, &washington));
+let g2 = GeodesicSegment::from((&reyjavik, &accra));
 
 // Calculate the intersection point position
 let result = calculate_intersection_point(&g1, &g2, Metres(1e-3));
@@ -190,7 +194,7 @@ assert!(is_within_tolerance(-14.56385574430775, lat_lon.lon().0, 1e-6));
 ## Test
 
 The integration test uses Charles Karney's
-[Test data for geodesics](https://geographiclib.sourceforge.io/C++/doc/geodesic.html#testgeod) to verify geodesic azimuth and distance calculations between
+[Test data for geodesics](https://geographiclib.sourceforge.io/C++/doc/geodesic.html#testgeod) to verify geodesic segment azimuth and distance calculations between
 positions on the WGS-84 ellipsoid.
 Run the tests using:
 

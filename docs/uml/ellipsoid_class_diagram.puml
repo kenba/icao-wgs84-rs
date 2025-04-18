@@ -10,11 +10,11 @@ set namespaceSeparator ::
         namespace geodesic {
         }
 
-        class Geodesic {
+        class GeodesicSegment {
             - beta
             - lon
             - azi
-            - aux_length
+            - arc_length
             - ellipsoid
             + lat_long()
             + calculate_atd_and_xtd()
@@ -34,8 +34,8 @@ set namespaceSeparator ::
             + calculate_geodetic_latitude()
         }
 
-        Geodesic o-- Ellipsoid
-        Geodesic . geodesic::functions
+        GeodesicSegment o-- Ellipsoid
+        GeodesicSegment . geodesic::functions
         Ellipsoid . ellipsoid::functions
         Ellipsoid .. ellipsoid::wgs84
     }
@@ -66,11 +66,11 @@ set namespaceSeparator ::
         }
     }
 
-    icao_wgs84::Geodesic . unit_sphere::LatLong
-    icao_wgs84::Geodesic *-- angle_sc::Angle
-    icao_wgs84::Geodesic .. angle_sc::Degrees
-    icao_wgs84::Geodesic *-- angle_sc::Radians
-    icao_wgs84::Geodesic .. icao_units::Metres
+    icao_wgs84::GeodesicSegment . unit_sphere::LatLong
+    icao_wgs84::GeodesicSegment *-- angle_sc::Angle
+    icao_wgs84::GeodesicSegment .. angle_sc::Degrees
+    icao_wgs84::GeodesicSegment *-- angle_sc::Radians
+    icao_wgs84::GeodesicSegment .. icao_units::Metres
     icao_wgs84::Ellipsoid *--icao_units::Metres
     unit_sphere::LatLong *-- "2" angle_sc::Degrees
 @enduml

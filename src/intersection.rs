@@ -44,7 +44,7 @@
 //! distances using great-circles on the unit sphere at the calculated
 //! intersection distances.
 
-use crate::{geodesic, Geodesic, Radians};
+use crate::{geodesic, GeodesicSegment, Radians};
 use unit_sphere::{great_circle, vector};
 
 /// Calculate the distances along a pair of Geodesics (in Radians) to their
@@ -58,8 +58,8 @@ use unit_sphere::{great_circle, vector};
 /// the number of iterations required.
 #[must_use]
 pub fn calculate_geodesic_intersection_distances(
-    g1: &Geodesic,
-    g2: &Geodesic,
+    g1: &GeodesicSegment,
+    g2: &GeodesicSegment,
     sq_precision: f64,
     use_antipodal_intersection: bool,
     initial_distances: (Radians, Radians),
@@ -112,9 +112,9 @@ pub fn calculate_geodesic_intersection_distances(
 ///
 /// The function will panic if the Geodesics are **not** on the same `Ellipsoid`.
 #[must_use]
-pub fn calculate_aux_intersection_distances(
-    g1: &Geodesic,
-    g2: &Geodesic,
+pub fn calculate_sphere_intersection_distances(
+    g1: &GeodesicSegment,
+    g2: &GeodesicSegment,
     precision: Radians,
 ) -> (Radians, Radians, u32) {
     // The minimum sin angle between coincident geodesics
@@ -158,8 +158,8 @@ pub fn calculate_aux_intersection_distances(
                 let distances = vector::intersection::calculate_coincident_arc_distances(
                     atd,
                     reciprocal,
-                    g1.aux_length(),
-                    g2.aux_length(),
+                    g1.arc_length(),
+                    g2.arc_length(),
                 );
                 (distances.0, distances.1, 0)
             } else {
@@ -169,8 +169,8 @@ pub fn calculate_aux_intersection_distances(
         } else {
             // Calculate the intersection of the poles at the mid points of the unit
             // sphere great circle arcs
-            let half_aux_length1 = Radians(0.5 * g1.aux_length().0);
-            let half_aux_length2 = Radians(0.5 * g2.aux_length().0);
+            let half_aux_length1 = Radians(0.5 * g1.arc_length().0);
+            let half_aux_length2 = Radians(0.5 * g2.arc_length().0);
             let (a1mid, pole1mid) = g1.aux_point_and_pole(half_aux_length1);
             let (a2mid, pole2mid) = g2.aux_point_and_pole(half_aux_length2);
 
@@ -181,8 +181,8 @@ pub fn calculate_aux_intersection_distances(
                     let distances = vector::intersection::calculate_coincident_arc_distances(
                         atd,
                         reciprocal,
-                        g1.aux_length(),
-                        g2.aux_length(),
+                        g1.arc_length(),
+                        g2.arc_length(),
                     );
                     (distances.0, distances.1, 0)
                 },
@@ -216,27 +216,27 @@ pub fn calculate_aux_intersection_distances(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{Geodesic, Metres};
+    use crate::{GeodesicSegment, Metres};
     use angle_sc::{is_within_tolerance, Angle, Degrees, Radians};
     use unit_sphere::LatLong;
 
     #[test]
     fn test_intersection_same_start_point() {
-        // A Geodesic along the Greenwich meridian, over the North pole and down the IDL
+        // A GeodesicSegment along the Greenwich meridian, over the North pole and down the IDL
         let a = LatLong::new(Degrees(45.0), Degrees(0.0));
         let b = LatLong::new(Degrees(45.0), Degrees(180.0));
-        let g1 = Geodesic::from((&a, &b));
+        let g1 = GeodesicSegment::from((&a, &b));
 
         // Convert 1mm precision to Radians
         let precision = Radians(Metres(1e-3).0 / g1.ellipsoid().a().0);
 
         let c = LatLong::new(Degrees(45.0), Degrees(45.0));
-        let g2 = Geodesic::from((&a, &c));
+        let g2 = GeodesicSegment::from((&a, &c));
 
         let (distance1, distance2, iterations) =
-            calculate_aux_intersection_distances(&g1, &g2, precision);
+            calculate_sphere_intersection_distances(&g1, &g2, precision);
         println!(
-            "calculate_aux_intersection_distances iterations: {:?}",
+            "calculate_sphere_intersection_distances iterations: {:?}",
             iterations
         );
         assert_eq!(0.0, distance1.0);
@@ -245,20 +245,20 @@ mod tests {
 
     #[test]
     fn test_non_intersection_same_geodesic() {
-        // A Geodesic along the Greenwich meridian, over the North pole and down the IDL
+        // A GeodesicSegment along the Greenwich meridian, over the North pole and down the IDL
         let a = LatLong::new(Degrees(45.0), Degrees(0.0));
         let b = LatLong::new(Degrees(50.0), Degrees(0.0));
-        let g1 = Geodesic::from((&a, &b));
+        let g1 = GeodesicSegment::from((&a, &b));
 
         // Convert 1mm precision to Radians
         let precision = Radians(Metres(1e-3).0 / g1.ellipsoid().a().0);
 
         let c = LatLong::new(Degrees(55.0), Degrees(0.0));
         let d = LatLong::new(Degrees(60.0), Degrees(0.0));
-        let g2 = Geodesic::from((&c, &d));
+        let g2 = GeodesicSegment::from((&c, &d));
 
         let (distance1, distance2, iterations) =
-            calculate_aux_intersection_distances(&g1, &g2, precision);
+            calculate_sphere_intersection_distances(&g1, &g2, precision);
         assert_eq!(0.17463328753266863, distance1.0);
         assert_eq!(0.0, distance2.0);
         assert_eq!(0, iterations);
@@ -266,17 +266,17 @@ mod tests {
 
     #[test]
     fn test_intersection_same_geodesic_split() {
-        // A Geodesic along the Greenwich meridian, over the North pole and down the IDL
+        // A GeodesicSegment along the Greenwich meridian, over the North pole and down the IDL
         let a = LatLong::new(Degrees(1.0), Degrees(0.0));
         let b = LatLong::new(Degrees(-0.998286322222), Degrees(179.296674991667));
-        let g = Geodesic::from((&a, &b));
+        let g = GeodesicSegment::from((&a, &b));
 
         // Split g into two geodesics
         let half_length = Metres(g.length().0 / 2.0);
         let half_aux_length = g.metres_to_radians(half_length);
 
         // a geodesic from the start of g to its mid point
-        let g1 = Geodesic::new(
+        let g1 = GeodesicSegment::new(
             g.beta(),
             g.lon(),
             g.aux_azimuth(Radians(0.0)),
@@ -284,11 +284,11 @@ mod tests {
             g.ellipsoid(),
         );
         // a geodesic from the mid point of g to its end
-        let g2 = Geodesic::new(
+        let g2 = GeodesicSegment::new(
             g.aux_beta(Angle::from(half_aux_length)),
             g.aux_longitude(half_aux_length),
             g.aux_azimuth(half_aux_length),
-            g.aux_length() - half_aux_length,
+            g.arc_length() - half_aux_length,
             g.ellipsoid(),
         );
 
@@ -297,9 +297,9 @@ mod tests {
 
         // geodesics are coincident
         let (distance1, distance2, iterations) =
-            calculate_aux_intersection_distances(&g1, &g2, precision);
+            calculate_sphere_intersection_distances(&g1, &g2, precision);
         assert!(is_within_tolerance(
-            g1.aux_length().0,
+            g1.arc_length().0,
             distance1.0,
             f64::EPSILON
         ));
@@ -307,7 +307,7 @@ mod tests {
         assert_eq!(0, iterations);
 
         // a geodesic from the mid point of g to another point
-        let g3 = Geodesic::new(
+        let g3 = GeodesicSegment::new(
             g.aux_beta(Angle::from(half_aux_length)),
             g.aux_longitude(half_aux_length),
             g.aux_azimuth(Radians(0.0)),
@@ -317,9 +317,9 @@ mod tests {
 
         // geodesics are NOT coincident
         let (distance1, distance2, iterations) =
-            calculate_aux_intersection_distances(&g1, &g3, precision);
+            calculate_sphere_intersection_distances(&g1, &g3, precision);
         assert!(is_within_tolerance(
-            g1.aux_length().0,
+            g1.arc_length().0,
             distance1.0,
             f64::EPSILON
         ));
