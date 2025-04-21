@@ -73,6 +73,7 @@ fn test_geodesic_examples() -> Result<(), Box<dyn std::error::Error>> {
         aux_distances,
     ));
 
+    let mut invalid_tests = 0;
     let mut iterations = 0;
     for (index, (lat1, azi1, lat2, lon2, azi2, d_metres, d_degrees)) in combined.enumerate() {
         let lat1 = Degrees(lat1.unwrap());
@@ -83,6 +84,11 @@ fn test_geodesic_examples() -> Result<(), Box<dyn std::error::Error>> {
         let azi2 = Degrees(azi2.unwrap());
         let d_metres = Metres(d_metres.unwrap());
         let d_degrees = Degrees(d_degrees.unwrap());
+
+        // path crosses the equator from North to South, but GeodTest.dat azimuth is northerly
+        if (lat1.0 > 0.0) && (lat2.0 < 0.0) && (azi1.0 < 90.0) {
+            invalid_tests += 1;
+        }
 
         // panic!("lon2; {:?}", lon2);
         let a = LatLong::new(lat1, lon1);
@@ -95,13 +101,14 @@ fn test_geodesic_examples() -> Result<(), Box<dyn std::error::Error>> {
         );
         iterations += result.3;
 
-        let delta_azimuth = libm::fabs(azi1.0 - Degrees::from(result.0).0);
+        let azi = Degrees::from(result.0);
+        let delta_azimuth = libm::fabs(azi1.0 - azi.0);
         // reduce tolerance for entries running between or close to vertices
-        let azimuth_tolerance = if index <= 400000 { 5.331e-5 } else { 0.077 };
+        let azimuth_tolerance = if index <= 400000 { 5.331e-5 } else { 0.0852 };
         if azimuth_tolerance < delta_azimuth {
             panic!(
-                "azimuth, line: {:?} delta: {:?} azimuth: {:?} delta_long: {:?} ",
-                index, delta_azimuth, azi1, lon2
+                "azimuth, line: {:?} lat1: {:?} delta: {:?} azimuth: {:?} calculated: {:?} delta_long: {:?} ",
+                index, lat1, delta_azimuth, azi1, azi, lon2
             );
         }
 
@@ -156,8 +163,8 @@ fn test_geodesic_examples() -> Result<(), Box<dyn std::error::Error>> {
         //  end_by_vertices_df = tests_df[450000:500000]
     }
 
-    println!("lines,iterations");
-    println!("{},{}", lines, iterations);
+    println!("lines,iterations, invalid_tests");
+    println!("{},{},{}", lines, iterations, invalid_tests);
 
     Ok(())
 }

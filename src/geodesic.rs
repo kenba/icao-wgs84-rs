@@ -412,8 +412,10 @@ fn find_azimuths_and_arc_length(
     tolerance: Radians,
     ellipsoid: &Ellipsoid,
 ) -> (Angle, Radians, Angle, u32) {
-    // Start at the latitude furthest from the Equator
-    let swap_latitudes = beta_a.sin().abs() < beta_b.sin().abs();
+    // Start at the latitude furthest from the Equator,
+    // or the most southerly point, if equidistant
+    let swap_latitudes = (beta_a.sin().abs() < beta_b.sin().abs())
+        || (beta_a.sin().abs() == beta_b.sin().abs() && beta_b.sin() < beta_a.sin());
     let mut beta1 = if swap_latitudes { beta_b } else { beta_a };
     let mut beta2 = if swap_latitudes { beta_a } else { beta_b };
 
@@ -427,7 +429,7 @@ fn find_azimuths_and_arc_length(
     // Use positive lambda12, so all azimuths are positive
     let abs_lambda12 = lambda12.abs();
 
-    // Estimate the azimuth at the start of the geodesic segment 
+    // Estimate the azimuth at the start of the geodesic segment
     let antipodal_arc_threshold: f64 = core::f64::consts::PI * ellipsoid.one_minus_f();
     let alpha0 = if antipodal_arc_threshold < gc_length.0 {
         estimate_antipodal_initial_azimuth(beta1, beta2, abs_lambda12, ellipsoid)
@@ -475,7 +477,7 @@ fn find_azimuths_and_arc_length(
 /// * `tolerance` - the tolerance to perform the calculation to.
 /// * `ellipsoid` - the `Ellipsoid`.
 ///
-/// returns the azimuth at the start of the geodesic segment, the great circle 
+/// returns the azimuth at the start of the geodesic segment, the great circle
 /// arc length on the auxiliary sphere, the azimuth at the end of
 /// geodesic segment and the number of iterations required to calculate them.
 #[must_use]
@@ -524,7 +526,7 @@ pub fn aux_sphere_azimuths_length(
 /// * `ellipsoid` - the `Ellipsoid`.
 ///
 /// returns the azimuth at the start of the geodesic segment, the great circle
-/// arc length on the auxiliary sphere, the azimuth at the end of 
+/// arc length on the auxiliary sphere, the azimuth at the end of
 /// geodesic segment and the number of iterations required to calculate them.
 #[must_use]
 pub fn calculate_azimuths_aux_length(
@@ -814,10 +816,11 @@ mod tests {
     #[test]
     fn test_calculate_azimuths_aux_length_normal_06() {
         // GeodTest.dat line 460107
+        // 89.985810803742 0 90.033923043742 -89.985810803761488692 179.999716989078075251 89.966210133068275597 20003931.4528694 179.999999966908046132 .0036837809003 -47969483155.576793
         let latlon1 = LatLong::new(Degrees(89.985810803742), Degrees(0.0));
         let latlon2 = LatLong::new(
             Degrees(-89.985810803761488692),
-            Degrees(179.999716989078075251),
+            Degrees(179.999716989078075251),  
         );
 
         let result = calculate_azimuths_aux_length(
@@ -826,10 +829,76 @@ mod tests {
             Radians(great_circle::MIN_VALUE),
             &WGS84_ELLIPSOID,
         );
-        assert_eq!(90.00013317691077, Degrees::from(result.0).0); // 90.000133176657
-        assert_eq!(3.141592653012229, (result.1).0); // 3.141592653012231
-        assert_eq!(90.0, Degrees::from(result.2).0); // 89.966210133068275597
+        assert_eq!(90.03393799266541, Degrees::from(result.0).0); // 90.033923043742
+        assert_eq!(3.14159265301223, (result.1).0); // 3.1415926530122293
+        assert_eq!(89.96619518414488, Degrees::from(result.2).0); // 89.966210133068275597
+    }
+    
+    #[test]
+    fn test_calculate_azimuths_aux_length_normal_07() {
+        // GeodTest.dat line 4701132
+        // 85.89252711453 0 90.028477847874 -85.892527114530046541 179.956663887832388079 89.971522153429881464 20003758.1089151 179.999999999906050673 .0000961077487 -40347877014.28062
+        let latlon1 = LatLong::new(Degrees(85.89252711453), Degrees(0.0));
+        let latlon2 = LatLong::new(
+            Degrees(-85.892527114530046541),
+            Degrees(179.956663887832388079),
+        );
+
+        let result = calculate_azimuths_aux_length(
+            &latlon1,
+            &latlon2,
+            Radians(great_circle::MIN_VALUE),
+            &WGS84_ELLIPSOID,
+        );
+
+        assert_eq!(90.02817870318519, Degrees::from(result.0).0); // 90.028477847874
+        assert_eq!(3.141592653588294, (result.1).0); // 3.141592653588153
+        assert_eq!(89.97182129800713, Degrees::from(result.2).0); // 89.971522153429881464
     }
 
-    // 89.985810803742 0 90.033923043742 -89.985810803761488692 179.999716989078075251 89.966210133068275597 20003931.4528694 179.999999966908046132 .0036837809003 -47969483155.576793
+    #[test]
+    fn test_calculate_azimuths_aux_length_normal_08() {
+        // GeodTest.dat line 470905
+        // 56.706063494255 0 89.959815697468 -56.706063494254993895 179.668131859151492609 90.0401843025452288 19993766.626695 179.999999999991283078 .0100047302652 56858075837.296755
+        let latlon1 = LatLong::new(Degrees(56.706063494255), Degrees(0.0));
+        let latlon2 = LatLong::new(
+            Degrees(-56.706063494254993895),
+            Degrees(179.668131859151492609),
+        );
+
+        let result = calculate_azimuths_aux_length(
+            &latlon1,
+            &latlon2,
+            Radians(great_circle::MIN_VALUE),
+            &WGS84_ELLIPSOID,
+        );
+
+        // GeodTest.dat azimuths are swapped around
+        assert_eq!(90.0401804082455, Degrees::from(result.0).0); // 89.959815697468
+        assert_eq!(3.141592653589793, (result.1).0); // 3.141592653589641
+        assert_eq!(89.9598195917545, Degrees::from(result.2).0); // 90.0401843025452288
+    }
+
+    #[test]
+    fn test_calculate_azimuths_aux_length_normal_09() {
+        // GeodTest.dat line 497725
+        // 85.224117973184 0 89.957303913327 -85.2241179731839905 179.949627233487121769 90.042696086825586442 20003697.2437342 179.999999999987208748 .000261547236 60492019939.566295
+        let latlon1 = LatLong::new(Degrees(85.224117973184), Degrees(0.0));
+        let latlon2 = LatLong::new(
+            Degrees(-85.2241179731839905),
+            Degrees(179.949627233487121769),
+        );
+
+        let result = calculate_azimuths_aux_length(
+            &latlon1,
+            &latlon2,
+            Radians(great_circle::MIN_VALUE),
+            &WGS84_ELLIPSOID,
+        );
+
+        // GeodTest.dat azimuths are swapped around
+        assert_eq!(90.0424617291363, Degrees::from(result.0).0); // 89.957303913327
+        assert_eq!(3.141592653589793, (result.1).0); // 3.14159265358957
+        assert_eq!(89.9575382708637, Degrees::from(result.2).0); // 90.042696086825586442
+    }
 }
