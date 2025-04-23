@@ -86,9 +86,9 @@
 //!   and perform great-circle and vector calculations.
 //! - [icao_units](https://crates.io/crates/icao-units) - to define `Metres` and
 //!   `NauticalMiles` and perform conversions between them.
-//! 
+//!
 //! <img src="https://via-technology.aero/img/software/ellipsoid_class_diagram.svg" width="400">
-//! 
+//!
 //! *Figure 3 Class Diagram*
 //!
 //! The library is declared [no_std](https://docs.rust-embedded.org/book/intro/no-std.html)
@@ -296,7 +296,7 @@ lazy_static! {
 /// * `tolerance` - the tolerance to perform the calculation to.
 /// * `ellipsoid` - the `Ellipsoid`.
 ///
-/// returns the azimuth at the start and end positions and the length of 
+/// returns the azimuth at the start and end positions and the length of
 /// the geodesic segment on the ellipsoid in metres.
 ///
 /// # Examples
@@ -315,7 +315,7 @@ lazy_static! {
 ///
 /// let distance_nm = NauticalMiles::from(length);
 /// println!("Istanbul-Washington distance: {:?}", distance_nm);
-/// 
+///
 /// let azimuth_degrees = Degrees::from(end_azimuth.opposite());
 /// println!("Washington-Istanbul initial azimuth: {:?}", azimuth_degrees.0);
 #[must_use]
@@ -337,7 +337,7 @@ pub fn calculate_azimuths_and_geodesic_length(
 }
 
 /// A geodesic segment on the surface of an ellipsoid.
-/// 
+///
 /// A geodesic segment on an ellipsoid is the shortest path between two points.
 /// It is represented by a start position and azimuth of a great circle arc on
 /// the auxiliary sphere.
@@ -453,7 +453,8 @@ impl<'a> GeodesicSegment<'a> {
         length: Metres,
         ellipsoid: &'a Ellipsoid,
     ) -> Self {
-        let mut arc = GeodesicSegment::from_lat_lon_azi_arc_length(a, azimuth, Radians(0.0), ellipsoid);
+        let mut arc =
+            GeodesicSegment::from_lat_lon_azi_arc_length(a, azimuth, Radians(0.0), ellipsoid);
         arc.set_arc_length(arc.metres_to_radians(length));
         arc
     }
@@ -528,6 +529,12 @@ impl<'a> GeodesicSegment<'a> {
     #[must_use]
     pub fn a(&self) -> Vector3d {
         unit_sphere::vector::to_point(self.beta, self.lon)
+    }
+
+    /// Accessor for the start pole on the unit sphere.
+    #[must_use]
+    pub fn pole(&self) -> Vector3d {
+        unit_sphere::vector::calculate_pole(self.beta, self.lon, self.azi)
     }
 
     /// Convert a distance in metres on the ellipsoid to radians on the
@@ -1239,7 +1246,8 @@ mod tests {
 
         let tolerance = Radians(great_circle::MIN_VALUE);
 
-        let g1 = GeodesicSegment::between_positions(&istanbul, &washington, tolerance, &WGS84_ELLIPSOID);
+        let g1 =
+            GeodesicSegment::between_positions(&istanbul, &washington, tolerance, &WGS84_ELLIPSOID);
         assert!(g1.is_valid());
 
         let end_azimuth = Degrees::from(g1.azimuth(g1.length()));

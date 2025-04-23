@@ -141,15 +141,16 @@ pub fn calculate_sphere_intersection_distances(
             g1.ellipsoid(),
         );
 
-        // Determine whether the geodesics are coincident
-        let delta_azimuth1_3 = g1.azi() - g3_azi;
-        let reciprocal = delta_azimuth1_3.sin().0 < 0.0;
+        // Determine whether the geodesics are reciprocal
+        let reciprocal = g1.pole().dot(&g2.pole()) < 0.0;
         let atd = if reciprocal {
             -g3_aux_length
         } else {
             g3_aux_length
         };
 
+        // Determine whether the geodesics are coincident
+        let delta_azimuth1_3 = g1.azi() - g3_azi;
         if delta_azimuth1_3.sin().abs().0 < MIN_SIN_ANGLE {
             // The geodesics may be coincident
             let delta_azimuth2_3 = g2.azi() - g3_end_azi;
