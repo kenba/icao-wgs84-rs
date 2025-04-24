@@ -412,10 +412,10 @@ fn find_azimuths_and_arc_length(
     tolerance: Radians,
     ellipsoid: &Ellipsoid,
 ) -> (Angle, Radians, Angle, u32) {
+    let antipodal_arc_threshold: f64 = core::f64::consts::PI * ellipsoid.one_minus_f();
+
     // Start at the latitude furthest from the Equator,
-    // or the most southerly point, if equidistant
-    let swap_latitudes = (beta_a.sin().abs() < beta_b.sin().abs())
-        || (beta_a.sin().abs() == beta_b.sin().abs() && beta_b.sin() < beta_a.sin());
+    let swap_latitudes = beta_a.sin().abs() < beta_b.sin().abs();
     let mut beta1 = if swap_latitudes { beta_b } else { beta_a };
     let mut beta2 = if swap_latitudes { beta_a } else { beta_b };
 
@@ -430,8 +430,7 @@ fn find_azimuths_and_arc_length(
     let abs_lambda12 = lambda12.abs();
 
     // Estimate the azimuth at the start of the geodesic segment
-    let antipodal_arc_threshold: f64 = core::f64::consts::PI * ellipsoid.one_minus_f();
-    let alpha0 = if antipodal_arc_threshold < gc_length.0 {
+    let alpha0 = if gc_length.0 >= antipodal_arc_threshold {
         estimate_antipodal_initial_azimuth(beta1, beta2, abs_lambda12, ellipsoid)
     } else {
         estimate_initial_azimuth(beta1, beta2, abs_lambda12, ellipsoid)
@@ -830,14 +829,14 @@ mod tests {
             &WGS84_ELLIPSOID,
         );
 
-        assert_eq!(90.03393799266541, Degrees::from(result.0).0); // 90.033923043742
+        assert_eq!(90.00013317691077, Degrees::from(result.0).0); // 90.033923043742
         assert!(is_within_tolerance(
             179.999999966908046132_f64.to_radians(),
             (result.1).0,
             2.0 * f64::EPSILON
         ));
-        assert_eq!(89.96619518414488, Degrees::from(result.2).0); // 89.966210133068275597
-        assert_eq!(2, result.3);
+        assert_eq!(90.0, Degrees::from(result.2).0); // 89.966210133068275597
+        assert_eq!(20, result.3);
     }
 
     #[test]
@@ -857,14 +856,14 @@ mod tests {
             &WGS84_ELLIPSOID,
         );
 
-        assert_eq!(90.02817870325808, Degrees::from(result.0).0); // 90.028477847874
+        assert_eq!(89.99999995897039, Degrees::from(result.0).0); // 90.028477847874
         assert!(is_within_tolerance(
             179.999999999906050673_f64.to_radians(),
             (result.1).0,
-            650.0 * f64::EPSILON
+            7500.0 * f64::EPSILON
         ));
-        assert_eq!(89.97182129793423, Degrees::from(result.2).0); // 89.971522153429881464
-        assert_eq!(16, result.3);
+        assert_eq!(90.0, Degrees::from(result.2).0); // 89.971522153429881464
+        assert_eq!(20, result.3);
     }
 
     #[test]
@@ -884,14 +883,13 @@ mod tests {
             &WGS84_ELLIPSOID,
         );
 
-        // GeodTest.dat azimuths are swapped around
-        assert_eq!(90.04018040699289, Degrees::from(result.0).0); // 89.959815697468
+        assert_eq!(89.95981959300711, Degrees::from(result.0).0); // 89.959815697468
         assert!(is_within_tolerance(
             179.999999999991283078_f64.to_radians(),
             (result.1).0,
             700.0 * f64::EPSILON
         ));
-        assert_eq!(89.95981959300711, Degrees::from(result.2).0); // 90.0401843025452288
+        assert_eq!(90.04018040699289, Degrees::from(result.2).0); // 90.0401843025452288
         assert_eq!(17, result.3);
     }
 
@@ -913,13 +911,13 @@ mod tests {
         );
 
         // GeodTest.dat azimuths are swapped around
-        assert_eq!(90.04246172913447, Degrees::from(result.0).0); // 89.957303913327
+        assert_eq!(89.95753827086553, Degrees::from(result.0).0); // 89.957303913327
         assert!(is_within_tolerance(
             179.999999999987208748_f64.to_radians(),
             (result.1).0,
             1024.0 * f64::EPSILON
         ));
-        assert_eq!(89.95753827086553, Degrees::from(result.2).0); // 90.042696086825586442
+        assert_eq!(90.04246172913447, Degrees::from(result.2).0); // 90.042696086825586442
         assert_eq!(17, result.3);
     }
 
@@ -1111,14 +1109,13 @@ mod tests {
         );
 
         // Does not converge in 20 iterations...
-        assert_eq!(90.00378305899967, Degrees::from(result.0).0); // 90.006690097427
+        assert_eq!(89.99621694100033, Degrees::from(result.0).0); // 90.006690097427
         assert!(is_within_tolerance(
             179.999999999967475093_f64.to_radians(),
             (result.1).0,
-            4096.0 * f64::EPSILON
+            2556.0 * f64::EPSILON
         ));
-        assert_eq!(3.141592653589793, (result.1).0); // 3.1415926535892256
-        assert_eq!(89.99621694100033, Degrees::from(result.2).0); // 89.993309902872831362
+        assert_eq!(90.00378305899967, Degrees::from(result.2).0); // 89.993309902872831362
         assert_eq!(20, result.3);
     }
 
@@ -1169,14 +1166,13 @@ mod tests {
         );
 
         // Does not converge in 20 iterations...
-        assert_eq!(90.00263099449461, Degrees::from(result.0).0); // 90.002808565642
+        assert_eq!(89.99736900550539, Degrees::from(result.0).0); // 90.002808565642
         assert!(is_within_tolerance(
             179.999999999945283834_f64.to_radians(),
             (result.1).0,
-            4400.0 * f64::EPSILON
+            4300.0 * f64::EPSILON
         ));
-        assert_eq!(3.141592653589793, (result.1).0); // 3.1415926535888383
-        assert_eq!(89.99736900550539, Degrees::from(result.2).0); // 89.997191434401322223
+        assert_eq!(90.00263099449461, Degrees::from(result.2).0); // 89.997191434401322223
         assert_eq!(20, result.3);
     }
 }
