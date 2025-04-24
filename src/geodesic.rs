@@ -924,6 +924,87 @@ mod tests {
     }
 
     #[test]
+    fn test_calculate_azimuths_aux_length_normal_10() {
+        // GeodTest.dat line 451464. but antipodal
+        let lat1d = 30.815985336295;
+        let lat2d = -30.8159853362949972;
+        let lon2d = 180.0;
+
+        let latlon1 = LatLong::new(Degrees(lat1d), Degrees(0.0));
+        let latlon2 = LatLong::new(Degrees(lat2d), Degrees(lon2d));
+
+        let result = calculate_azimuths_aux_length(
+            &latlon1,
+            &latlon2,
+            Radians(great_circle::MIN_VALUE),
+            &WGS84_ELLIPSOID,
+        );
+
+        assert_eq!(0.0, Degrees::from(result.0).0);
+        assert_eq!(3.1415926237874707, (result.1).0);
+        assert_eq!(180.0, Degrees::from(result.2).0);
+        assert_eq!(0, result.3);
+
+        let beta_1 = WGS84_ELLIPSOID.calculate_parametric_latitude(Angle::from(Degrees(lat1d)));
+        let distance = convert_radians_to_metres(beta_1, result.0, result.1, &WGS84_ELLIPSOID);
+        assert_eq!(20003931.26901283, distance.0);
+    }
+
+    #[test]
+    fn test_calculate_azimuths_aux_length_normal_11() {
+        // GeodTest.dat line 451464. but nearly antipodal
+        let lat1d = 30.815985336295;
+        let lat2d = -30.8159853362949972;
+        let lon2d = 179.99;
+
+        let latlon1 = LatLong::new(Degrees(lat1d), Degrees(0.0));
+        let latlon2 = LatLong::new(Degrees(lat2d), Degrees(lon2d));
+
+        let result = calculate_azimuths_aux_length(
+            &latlon1,
+            &latlon2,
+            Radians(great_circle::MIN_VALUE),
+            &WGS84_ELLIPSOID,
+        );
+
+        assert_eq!(1.1054776533954898, Degrees::from(result.0).0);
+        assert_eq!(3.141592653589793, (result.1).0);
+        assert_eq!(178.8945223466045, Degrees::from(result.2).0);
+        assert_eq!(7, result.3);
+
+        let beta_1 = WGS84_ELLIPSOID.calculate_parametric_latitude(Angle::from(Degrees(lat1d)));
+        let distance = convert_radians_to_metres(beta_1, result.0, result.1, &WGS84_ELLIPSOID);
+        assert_eq!(20003922.22814904, distance.0); 
+    }
+
+    #[test]
+    fn test_calculate_azimuths_aux_length_normal_12() {
+        // GeodTest.dat line 451464. but slightly closer to antiopodal
+        let lat1d = 30.815985336295;
+        let lat2d = -30.8159853362949972;
+        let lon2d = 179.5;
+
+        let latlon1 = LatLong::new(Degrees(lat1d), Degrees(0.0));
+        let latlon2 = LatLong::new(Degrees(lat2d), Degrees(lon2d));
+
+        let result = calculate_azimuths_aux_length(
+            &latlon1,
+            &latlon2,
+            Radians(great_circle::MIN_VALUE),
+            &WGS84_ELLIPSOID,
+        );
+
+        assert_eq!(74.60015893697592, Degrees::from(result.0).0);
+        assert_eq!(3.1415926535897927, (result.1).0);
+        assert_eq!(105.3998410630241, Degrees::from(result.2).0);
+        assert_eq!(9, result.3);
+
+        let beta_1 = WGS84_ELLIPSOID.calculate_parametric_latitude(Angle::from(Degrees(lat1d)));
+        let distance = convert_radians_to_metres(beta_1, result.0, result.1, &WGS84_ELLIPSOID);
+        assert_eq!(19980861.90889096, distance.0); 
+    }
+
+    #[test]
     fn test_calculate_azimuths_aux_length_geodtest_451464() {
         // GeodTest.dat line 451464
         // 30.815985336295 0 89.999989151475 -30.8159853362949972 179.481356807121660669 90.000010857299389702 19979110.018652 179.999999985240671654 .0016389343224 15326161.345917
@@ -949,6 +1030,10 @@ mod tests {
         ));
         assert_eq!(90.00002873237618, Degrees::from(result.2).0); // 90.00000000877435
         assert_eq!(11, result.3);
+
+        let beta_1 = WGS84_ELLIPSOID.calculate_parametric_latitude(Angle::from(Degrees(lat1d)));
+        let distance = convert_radians_to_metres(beta_1, result.0, result.1, &WGS84_ELLIPSOID);
+        assert_eq!(19979110.018652, distance.0);
     }
 
     #[test]
