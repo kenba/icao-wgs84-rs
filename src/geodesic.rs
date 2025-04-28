@@ -28,6 +28,7 @@
 
 use crate::{ellipsoid, Ellipsoid, Metres};
 use angle_sc::{trig, trig::UnitNegRange, Angle, Radians};
+use core::f64;
 use unit_sphere::{great_circle, LatLong};
 
 /// Estimate omega12 by solving the astroid problem.
@@ -336,10 +337,14 @@ fn find_azimuth_length_newtons_method(
         // Calculate great circle length on the auxiliary sphere
         let sigma12 = sigma2 - sigma1;
         // clamp to range 0 to Pi
-        sigma12_rad = if sigma12.sin().0 > 0.0 {
-            Radians::from(sigma12)
+        sigma12_rad = if sigma12.sin().0.is_sign_negative() {
+            if sigma12.cos().0.is_sign_negative() {
+                Radians(f64::consts::PI)
+            } else {
+                Radians(0.0)
+            }
         } else {
-            Radians(libm::atan2(0.0, sigma12.cos().0))
+            Radians::from(sigma12)
         };
         let domg12 = delta_omega12(clairaut, eps, sigma12_rad, sigma1, sigma2, ellipsoid);
 
@@ -347,7 +352,11 @@ fn find_azimuth_length_newtons_method(
         let mut omega12 = omega2 - omega1;
         // clamp to range 0 to Pi
         if omega12.sin().0.is_sign_negative() {
-            omega12 = Angle::from_y_x(0.0, omega12.cos().0);
+            omega12 = if omega12.sin().0.is_sign_negative() {
+                Angle::new(trig::UnitNegRange(0.0), trig::UnitNegRange(-1.0))
+            } else {
+                Angle::default()
+            };
         }
         let eta = Radians::from(omega12 - abs_lambda12);
 
