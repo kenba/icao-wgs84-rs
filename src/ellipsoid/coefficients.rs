@@ -179,11 +179,8 @@ pub fn evaluate_polynomial(coeffs: &[f64], x: f64) -> f64 {
 
     if let Some((last, elements)) = coeffs.split_last() {
         result = *last;
-        if x != 0.0 {
-            for element in elements.iter().rev() {
-                result *= x;
-                result += *element;
-            }
+        for element in elements.iter().rev() {
+            result = x * result + *element;
         }
     }
 
@@ -371,11 +368,19 @@ mod tests {
 
         let eps45 = calculate_sq_2nd_eccentricity(wgs84::F) / 2.0;
         let a3_eps = evaluate_polynomial(&a3, eps45);
-
         assert_eq!(0.9983151115073848, a3_eps);
 
         let small = evaluate_polynomial(&a3, 0.0);
-        assert_eq!(-0.0234375, small);
+        assert_eq!(1.0, small);
+
+        let result = evaluate_polynomial(&a3, 0.25);
+        assert_eq!(0.85838416624767966, result);
+
+        let result = evaluate_polynomial(&a3, 0.5);
+        assert_eq!(0.67635032595433719, result);
+
+        let result = evaluate_polynomial(&a3, 1.0);
+        assert_eq!(0.11745075936696803, result);
 
         let empty: &[f64] = &[];
         let zero = evaluate_polynomial(&empty, eps45);
