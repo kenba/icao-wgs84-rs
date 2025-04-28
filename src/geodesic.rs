@@ -147,12 +147,12 @@ fn estimate_antipodal_initial_azimuth(
 
     // Solve astroid problem
     let x = Radians::from(lambda12.opposite()).0 / lamscale;
-    let y = (beta1.sin().0 + beta2.sin().0) / betscale;
+    let y = trig::sine_sum(beta1.sin(), beta1.cos(), beta2.sin(), beta2.cos()).0 / betscale;
 
     // Test x and y params
     if (y > -Y_TOLERANCE) && (x > -1.0 - x_threshold) {
         let sin_alpha = UnitNegRange::clamp(-x);
-        Angle::new(sin_alpha, trig::swap_sin_cos(sin_alpha))
+        Angle::new(sin_alpha, trig::swap_sin_cos(sin_alpha)).negate_cos()
     } else {
         let k = calculate_astroid(x, y);
         let omg12a = lamscale * (-x * k / (1.0 + k));
@@ -166,15 +166,10 @@ fn estimate_antipodal_initial_azimuth(
 /// * `beta` the `parametric` latitude
 /// * `cos_azimuth` the cosine of the azimuth at the `parametric` latitude
 ///
-/// returns the cosine of the longitude difference, zero if the `parametric`
-/// latitude is very close to the equator.
+/// returns the cosine of the longitude difference
 #[must_use]
 pub fn calculate_cos_omega(beta: Angle, cos_azimuth: UnitNegRange) -> UnitNegRange {
-    if beta.sin().abs().0 < f64::EPSILON {
-        UnitNegRange(1.0)
-    } else {
-        UnitNegRange(cos_azimuth.0 * beta.cos().0)
-    }
+    UnitNegRange(cos_azimuth.0 * beta.cos().0)
 }
 
 /// Calculate the azimuth on the auxiliary sphere at `parametric` latitude
@@ -304,8 +299,10 @@ fn find_azimuth_length_newtons_method(
     ellipsoid: &Ellipsoid,
     tolerance: Radians,
 ) -> (Angle, Radians, u32) {
+    // The first iteration threshold
+    const MAX_ITER1: u32 = 20;
     // The maximum number of iterations to attempt.
-    const MAX_ITERS: u32 = 20;
+    const MAX_ITERS: u32 = MAX_ITER1 + f64::DIGITS + 10;
 
     let dn1 = libm::sqrt(1.0 + ellipsoid.ep_2() * beta1.sin().0 * beta1.sin().0);
     let dn2 = libm::sqrt(1.0 + ellipsoid.ep_2() * beta2.sin().0 * beta2.sin().0);
@@ -323,8 +320,8 @@ fn find_azimuth_length_newtons_method(
         // Northbound equator crossing
         let sin_omega1 = UnitNegRange(clairaut.0 * beta1.sin().0);
         let cos_omega1 = calculate_cos_omega(beta1, alpha1.cos());
-        let omega1 = Angle::from_y_x(sin_omega1.0, cos_omega1.0);
         let sigma1 = Angle::from_y_x(beta1.sin().0, cos_omega1.0);
+        let omega1 = Angle::new(sin_omega1, cos_omega1);
 
         // Calculate azimuth at the end point
         let alpha2 = calculate_end_azimuth(beta1, beta2, alpha1);
@@ -333,8 +330,18 @@ fn find_azimuth_length_newtons_method(
         // Northbound equator crossing
         let sin_omega2 = UnitNegRange(clairaut.0 * beta2.sin().0);
         let cos_omega2 = calculate_cos_omega(beta2, alpha2.cos());
-        let omega2 = Angle::from_y_x(sin_omega2.0, cos_omega2.0);
         let sigma2 = Angle::from_y_x(beta2.sin().0, cos_omega2.0);
+        let omega2 = Angle::new(sin_omega2, cos_omega2);
+
+        // Calculate great circle length on the auxiliary sphere
+        let sigma12 = sigma2 - sigma1;
+        // clamp to range 0 to Pi
+        sigma12_rad = if sigma12.sin().0 > 0.0 {
+            Radians::from(sigma12)
+        } else {
+            Radians(libm::atan2(0.0, sigma12.cos().0))
+        };
+        let domg12 = delta_omega12(clairaut, eps, sigma12_rad, sigma1, sigma2, ellipsoid);
 
         // Calculate Longitude difference on the auxiliary sphere
         let mut omega12 = omega2 - omega1;
@@ -342,19 +349,7 @@ fn find_azimuth_length_newtons_method(
         if omega12.sin().0.is_sign_negative() {
             omega12 = Angle::from_y_x(0.0, omega12.cos().0);
         }
-
-        // Calculate great circle length on the auxiliary sphere
-        let mut sigma12 = sigma2 - sigma1;
-        // clamp to range 0 to Pi
-        if sigma12.sin().0.is_sign_negative() {
-            sigma12 = Angle::from_y_x(0.0, sigma12.cos().0);
-        }
-
-        // Calculate difference between geodesic and great circle longitudes
         let eta = Radians::from(omega12 - abs_lambda12);
-
-        sigma12_rad = Radians::from(sigma12);
-        let domg12 = delta_omega12(clairaut, eps, sigma12_rad, sigma1, sigma2, ellipsoid);
 
         // Difference between differences
         let v = eta.0 - domg12.0;
@@ -420,7 +415,7 @@ fn find_azimuths_and_arc_length(
     let mut beta2 = if swap_latitudes { beta_a } else { beta_b };
 
     // Start South of the Equator
-    let negate_latitude = 0.0 < beta1.sin().0;
+    let negate_latitude = beta1.sin().0.is_sign_positive();
     if negate_latitude {
         beta1 = -beta1;
         beta2 = -beta2;
@@ -581,7 +576,7 @@ pub fn convert_radians_to_metres(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::WGS84_ELLIPSOID;
+    use crate::{GeodesicSegment, WGS84_ELLIPSOID};
     use angle_sc::{is_within_tolerance, Degrees};
 
     #[test]
@@ -689,12 +684,14 @@ mod tests {
         assert_eq!(0.0, Degrees::from(result.0).0);
         assert_eq!(2.6163378712682306, (result.1).0);
         assert_eq!(0.0, Degrees::from(result.2).0);
+        assert_eq!(0, result.3);
 
         // Southbound geodesic segment along a meridian
         let result = calculate_azimuths_aux_length(&latlon2, &latlon1, tolerance, &WGS84_ELLIPSOID);
         assert_eq!(180.0, Degrees::from(result.0).0);
         assert_eq!(2.6163378712682306, (result.1).0);
         assert_eq!(180.0, Degrees::from(result.2).0);
+        assert_eq!(0, result.3);
 
         // Northbound geodesic segment past the North pole
         let latlon3: LatLong = LatLong::new(Degrees(80.0), Degrees(-140.0));
@@ -702,6 +699,7 @@ mod tests {
         assert_eq!(0.0, Degrees::from(result.0).0);
         assert_eq!(0.3502163200513691, (result.1).0);
         assert_eq!(180.0, Degrees::from(result.2).0);
+        assert_eq!(0, result.3);
     }
 
     #[test]
@@ -716,12 +714,14 @@ mod tests {
         assert_eq!(90.0, Degrees::from(result.0).0);
         assert_eq!(1.5760806267286946, (result.1).0);
         assert_eq!(90.0, Degrees::from(result.2).0);
+        assert_eq!(0, result.3);
 
         // Westbound geodesic segment along the equator
         let result = calculate_azimuths_aux_length(&latlon2, &latlon1, tolerance, &WGS84_ELLIPSOID);
         assert_eq!(-90.0, Degrees::from(result.0).0);
         assert_eq!(1.5760806267286946, (result.1).0);
         assert_eq!(-90.0, Degrees::from(result.2).0);
+        assert_eq!(0, result.3);
 
         // Long Eastbound geodesic segment along the equator
         let latlon3 = LatLong::new(Degrees(0.0), Degrees(135.0));
@@ -729,6 +729,22 @@ mod tests {
         assert_eq!(90.0, Degrees::from(result.0).0);
         assert_eq!(3.0646012186391296, (result.1).0);
         assert_eq!(90.0, Degrees::from(result.2).0);
+        assert_eq!(0, result.3);
+    }
+
+    #[test]
+    fn test_calculate_azimuths_aux_length_equator_antipodal() {
+        let latlon1 = LatLong::new(Degrees(0.0), Degrees(0.0));
+        let latlon2 = LatLong::new(Degrees(0.0), Degrees(180.0));
+
+        let tolerance = Radians(great_circle::MIN_VALUE);
+
+        // Northbound geodesic segment along the equator
+        let result = calculate_azimuths_aux_length(&latlon1, &latlon2, tolerance, &WGS84_ELLIPSOID);
+        assert_eq!(0.0, Degrees::from(result.0).0);
+        assert_eq!(core::f64::consts::PI, (result.1).0);
+        assert_eq!(180.0, Degrees::from(result.2).0);
+        assert_eq!(0, result.3);
     }
 
     #[test]
@@ -740,11 +756,11 @@ mod tests {
 
         // Northbound geodesic segment along the equator
         let result = calculate_azimuths_aux_length(&latlon1, &latlon2, tolerance, &WGS84_ELLIPSOID);
-        assert_eq!(55.94416957702605, Degrees::from(result.0).0);
-        // assert_eq!(core::f64::consts::PI, (result.1).0);
-        // assert_eq!(180.0 - 55.94416957702605, Degrees::from(result.2).0);
+        assert_eq!(55.96649514015865, Degrees::from(result.0).0);
+        assert_eq!(core::f64::consts::PI, (result.1).0);
+        assert_eq!(124.03350485984134, Degrees::from(result.2).0);
+        assert_eq!(3, result.3);
     }
-
     #[test]
     fn test_calculate_azimuths_aux_length_normal_01() {
         // North West bound, straddle Equator
@@ -757,9 +773,29 @@ mod tests {
             Radians(great_circle::MIN_VALUE),
             &WGS84_ELLIPSOID,
         );
-        assert_eq!(-55.00473169905793, Degrees::from(result.0).0);
+        assert_eq!(-55.00473169905792, Degrees::from(result.0).0);
         assert_eq!(1.6656790467428877, (result.1).0);
         assert_eq!(-46.47061016713593, Degrees::from(result.2).0);
+        assert_eq!(5, result.3);
+
+        let beta1 = WGS84_ELLIPSOID.calculate_parametric_latitude(Angle::from(Degrees(-40.0)));
+        let g = GeodesicSegment::new(
+            beta1,
+            Angle::from(Degrees(70.0)),
+            result.0,
+            result.1,
+            &WGS84_ELLIPSOID,
+        );
+        let latlon3 = g.aux_lat_long(result.1);
+        assert_eq!(
+            Degrees::from(latlon3.lat()).0,
+            Degrees::from(latlon2.lat()).0
+        );
+        assert!(is_within_tolerance(
+            Degrees::from(latlon2.lon()).0,
+            Degrees::from(latlon3.lon()).0,
+            64.0 * f64::EPSILON
+        ));
     }
 
     #[test]
@@ -776,7 +812,28 @@ mod tests {
         );
         assert_eq!(-133.52938983286407, Degrees::from(result.0).0);
         assert_eq!(1.6656790467428877, (result.1).0);
-        assert_eq!(-124.99526830094207, Degrees::from(result.2).0);
+        assert_eq!(-124.99526830094209, Degrees::from(result.2).0);
+        assert_eq!(5, result.3);
+
+        let beta1 = WGS84_ELLIPSOID.calculate_parametric_latitude(Angle::from(Degrees(30.0)));
+        let g = GeodesicSegment::new(
+            beta1,
+            Angle::from(Degrees(70.0)),
+            result.0,
+            result.1,
+            &WGS84_ELLIPSOID,
+        );
+        let latlon3 = g.aux_lat_long(result.1);
+        assert!(is_within_tolerance(
+            Degrees::from(latlon2.lat()).0,
+            Degrees::from(latlon3.lat()).0,
+            64.0 * f64::EPSILON
+        ));
+        assert!(is_within_tolerance(
+            Degrees::from(latlon2.lon()).0,
+            Degrees::from(latlon3.lon()).0,
+            64.0 * f64::EPSILON
+        ));
     }
 
     #[test]
@@ -793,7 +850,28 @@ mod tests {
         );
         assert_eq!(133.52938983286407, Degrees::from(result.0).0);
         assert_eq!(1.6656790467428877, (result.1).0);
-        assert_eq!(124.99526830094207, Degrees::from(result.2).0);
+        assert_eq!(124.99526830094209, Degrees::from(result.2).0);
+        assert_eq!(5, result.3);
+
+        let beta1 = WGS84_ELLIPSOID.calculate_parametric_latitude(Angle::from(Degrees(30.0)));
+        let g = GeodesicSegment::new(
+            beta1,
+            Angle::default(),
+            result.0,
+            result.1,
+            &WGS84_ELLIPSOID,
+        );
+        let latlon3 = g.aux_lat_long(result.1);
+        assert!(is_within_tolerance(
+            Degrees::from(latlon2.lat()).0,
+            Degrees::from(latlon3.lat()).0,
+            64.0 * f64::EPSILON
+        ));
+        assert!(is_within_tolerance(
+            Degrees::from(latlon2.lon()).0,
+            Degrees::from(latlon3.lon()).0,
+            64.0 * f64::EPSILON
+        ));
     }
 
     #[test]
@@ -808,9 +886,30 @@ mod tests {
             Radians(great_circle::MIN_VALUE),
             &WGS84_ELLIPSOID,
         );
-        assert_eq!(55.00473169905793, Degrees::from(result.0).0);
+        assert_eq!(55.00473169905792, Degrees::from(result.0).0);
         assert_eq!(1.6656790467428877, (result.1).0);
         assert_eq!(46.47061016713593, Degrees::from(result.2).0);
+        assert_eq!(5, result.3);
+
+        let beta1 = WGS84_ELLIPSOID.calculate_parametric_latitude(Angle::from(Degrees(-40.0)));
+        let g = GeodesicSegment::new(
+            beta1,
+            Angle::default(),
+            result.0,
+            result.1,
+            &WGS84_ELLIPSOID,
+        );
+        let latlon3 = g.aux_lat_long(result.1);
+        assert!(is_within_tolerance(
+            Degrees::from(latlon2.lat()).0,
+            Degrees::from(latlon3.lat()).0,
+            64.0 * f64::EPSILON
+        ));
+        assert!(is_within_tolerance(
+            Degrees::from(latlon2.lon()).0,
+            Degrees::from(latlon3.lon()).0,
+            64.0 * f64::EPSILON
+        ));
     }
 
     #[test]
@@ -828,6 +927,7 @@ mod tests {
         assert_eq!(1.0420381519981552, Degrees::from(result.0).0);
         assert_eq!(3.132893826005981, (result.1).0);
         assert_eq!(178.9579224301469, Degrees::from(result.2).0);
+        assert_eq!(5, result.3);
     }
 
     #[test]
@@ -847,14 +947,19 @@ mod tests {
             &WGS84_ELLIPSOID,
         );
 
-        assert_eq!(90.00013317691077, Degrees::from(result.0).0); // 90.033923043742
+        assert_eq!(90.00013317678403, Degrees::from(result.0).0); // 90.033923043742
         assert!(is_within_tolerance(
             179.999999966908046132_f64.to_radians(),
             (result.1).0,
             2.0 * f64::EPSILON
         ));
         assert_eq!(90.0, Degrees::from(result.2).0); // 89.966210133068275597
-        assert_eq!(20, result.3);
+        assert_eq!(33, result.3);
+
+        let beta_1 =
+            WGS84_ELLIPSOID.calculate_parametric_latitude(Angle::from(Degrees(89.985810803742)));
+        let distance = convert_radians_to_metres(beta_1, result.0, result.1, &WGS84_ELLIPSOID);
+        assert_eq!(20003931.452869397, distance.0); // 20003931.4528694
     }
 
     #[test]
@@ -874,14 +979,14 @@ mod tests {
             &WGS84_ELLIPSOID,
         );
 
-        assert_eq!(89.99999995897039, Degrees::from(result.0).0); // 90.028477847874
-        assert!(is_within_tolerance(
-            179.999999999906050673_f64.to_radians(),
-            (result.1).0,
-            7500.0 * f64::EPSILON
-        ));
-        assert_eq!(90.0, Degrees::from(result.2).0); // 89.971522153429881464
-        assert_eq!(20, result.3);
+        assert_eq!(89.54300317961666, Degrees::from(result.0).0); // 90.028477847874
+        assert_eq!(90.45699682030981, Degrees::from(result.2).0); // 89.971522153429881464
+        assert_eq!(45, result.3);
+
+        let beta_1 =
+            WGS84_ELLIPSOID.calculate_parametric_latitude(Angle::from(Degrees(85.89252711453)));
+        let distance = convert_radians_to_metres(beta_1, result.0, result.1, &WGS84_ELLIPSOID);
+        assert_eq!(20003758.11991076, distance.0); // 20003758.1089151
     }
 
     #[test]
@@ -901,14 +1006,14 @@ mod tests {
             &WGS84_ELLIPSOID,
         );
 
-        assert_eq!(89.95981959300711, Degrees::from(result.0).0); // 89.959815697468
-        assert!(is_within_tolerance(
-            179.999999999991283078_f64.to_radians(),
-            (result.1).0,
-            700.0 * f64::EPSILON
-        ));
-        assert_eq!(90.04018040699289, Degrees::from(result.2).0); // 90.0401843025452288
-        assert_eq!(17, result.3);
+        assert_eq!(89.9598195917545, Degrees::from(result.0).0); // 89.959815697468
+        assert_eq!(90.0401804082455, Degrees::from(result.2).0); // 90.0401843025452288
+        assert_eq!(2, result.3);
+
+        let beta_1 =
+            WGS84_ELLIPSOID.calculate_parametric_latitude(Angle::from(Degrees(56.706063494255)));
+        let distance = convert_radians_to_metres(beta_1, result.0, result.1, &WGS84_ELLIPSOID);
+        assert_eq!(19993766.626695, distance.0); // 19993766.626695
     }
 
     #[test]
@@ -929,14 +1034,19 @@ mod tests {
         );
 
         // GeodTest.dat azimuths are swapped around
-        assert_eq!(89.95753827086553, Degrees::from(result.0).0); // 89.957303913327
+        assert_eq!(89.9575382708637, Degrees::from(result.0).0); // 89.957303913327
         assert!(is_within_tolerance(
             179.999999999987208748_f64.to_radians(),
             (result.1).0,
             1024.0 * f64::EPSILON
         ));
-        assert_eq!(90.04246172913447, Degrees::from(result.2).0); // 90.042696086825586442
-        assert_eq!(17, result.3);
+        assert_eq!(90.0424617291363, Degrees::from(result.2).0); // 90.042696086825586442
+        assert_eq!(2, result.3);
+
+        let beta_1 =
+            WGS84_ELLIPSOID.calculate_parametric_latitude(Angle::from(Degrees(85.224117973184)));
+        let distance = convert_radians_to_metres(beta_1, result.0, result.1, &WGS84_ELLIPSOID);
+        assert_eq!(20003697.2437342, distance.0); // 20003697.2437342
     }
 
     #[test]
@@ -983,10 +1093,10 @@ mod tests {
             &WGS84_ELLIPSOID,
         );
 
-        assert_eq!(1.1054776533954898, Degrees::from(result.0).0);
+        assert_eq!(1.1054776533957336, Degrees::from(result.0).0);
         assert_eq!(3.141592653589793, (result.1).0);
-        assert_eq!(178.8945223466045, Degrees::from(result.2).0);
-        assert_eq!(7, result.3);
+        assert_eq!(178.89452234660428, Degrees::from(result.2).0);
+        assert_eq!(3, result.3);
 
         let beta_1 = WGS84_ELLIPSOID.calculate_parametric_latitude(Angle::from(Degrees(lat1d)));
         let distance = convert_radians_to_metres(beta_1, result.0, result.1, &WGS84_ELLIPSOID);
@@ -1010,10 +1120,10 @@ mod tests {
             &WGS84_ELLIPSOID,
         );
 
-        assert_eq!(74.60015893697592, Degrees::from(result.0).0);
+        assert_eq!(74.60015893697746, Degrees::from(result.0).0);
         assert_eq!(3.1415926535897927, (result.1).0);
-        assert_eq!(105.3998410630241, Degrees::from(result.2).0);
-        assert_eq!(9, result.3);
+        assert_eq!(105.39984106302255, Degrees::from(result.2).0);
+        assert_eq!(3, result.3);
 
         let beta_1 = WGS84_ELLIPSOID.calculate_parametric_latitude(Angle::from(Degrees(lat1d)));
         let distance = convert_radians_to_metres(beta_1, result.0, result.1, &WGS84_ELLIPSOID);
@@ -1038,13 +1148,8 @@ mod tests {
             &WGS84_ELLIPSOID,
         );
 
-        assert_eq!(89.99997127639824, Degrees::from(result.0).0); // 89.999989151475
-        assert!(is_within_tolerance(
-            179.999999985240671654_f64.to_radians(),
-            (result.1).0,
-            4.0 * f64::EPSILON
-        ));
-        assert_eq!(90.00002873237618, Degrees::from(result.2).0); // 90.00000000877435
+        assert_eq!(89.9999712763982, Degrees::from(result.0).0); // 89.999989151475
+        assert_eq!(90.00002873237621, Degrees::from(result.2).0); // 90.00000000877435
         assert_eq!(11, result.3);
 
         let beta_1 = WGS84_ELLIPSOID.calculate_parametric_latitude(Angle::from(Degrees(lat1d)));
@@ -1078,6 +1183,11 @@ mod tests {
         ));
         assert_eq!(90.00000000203018, Degrees::from(result.2).0); // 90.00000641955036513
         assert_eq!(2, result.3);
+
+        let beta_1 = WGS84_ELLIPSOID.calculate_parametric_latitude(Angle::from(Degrees(lat1d)));
+        let distance = convert_radians_to_metres(beta_1, result.0, result.1, &WGS84_ELLIPSOID);
+        // assert_eq!(19990494.415150497, distance.0); // 19990494.4151505
+        assert!(is_within_tolerance(19990494.4151505, distance.0, 1e-8));
     }
 
     #[test]
@@ -1106,6 +1216,11 @@ mod tests {
         ));
         assert_eq!(90.00000003804273, Degrees::from(result.2).0); // 90.000019070703465263
         assert_eq!(2, result.3);
+
+        let beta_1 = WGS84_ELLIPSOID.calculate_parametric_latitude(Angle::from(Degrees(lat1d)));
+        let distance = convert_radians_to_metres(beta_1, result.0, result.1, &WGS84_ELLIPSOID);
+        // assert_eq!(20003033.035972305, distance.0); // 20003033.0359723
+        assert!(is_within_tolerance(20003033.0359723, distance.0, 1e-8));
     }
 
     #[test]
@@ -1126,15 +1241,14 @@ mod tests {
             &WGS84_ELLIPSOID,
         );
 
-        // Does not converge in 20 iterations...
-        assert_eq!(89.99621694100033, Degrees::from(result.0).0); // 90.006690097427
-        assert!(is_within_tolerance(
-            179.999999999967475093_f64.to_radians(),
-            (result.1).0,
-            2556.0 * f64::EPSILON
-        ));
-        assert_eq!(90.00378305899967, Degrees::from(result.2).0); // 89.993309902872831362
-        assert_eq!(20, result.3);
+        assert_eq!(89.99621690421323, Degrees::from(result.0).0); // 90.006690097427
+        assert_eq!(90.00378309578677, Degrees::from(result.2).0); // 89.993309902872831362
+        assert_eq!(1, result.3);
+
+        let beta_1 = WGS84_ELLIPSOID.calculate_parametric_latitude(Angle::from(Degrees(lat1d)));
+        let distance = convert_radians_to_metres(beta_1, result.0, result.1, &WGS84_ELLIPSOID);
+        // assert_eq!(20003541.101643898, distance.0); // 20003541.1016439
+        assert!(is_within_tolerance(20003541.1016439, distance.0, 1e-8));
     }
 
     #[test]
@@ -1163,6 +1277,10 @@ mod tests {
         ));
         assert_eq!(90.00000451365437, Degrees::from(result.2).0); // 90.000014899078757451
         assert_eq!(2, result.3);
+
+        let beta_1 = WGS84_ELLIPSOID.calculate_parametric_latitude(Angle::from(Degrees(lat1d)));
+        let distance = convert_radians_to_metres(beta_1, result.0, result.1, &WGS84_ELLIPSOID);
+        assert_eq!(20003930.6795515, distance.0); // 20003930.6795515
     }
 
     #[test]
@@ -1183,14 +1301,14 @@ mod tests {
             &WGS84_ELLIPSOID,
         );
 
-        // Does not converge in 20 iterations...
-        assert_eq!(89.99736900550539, Degrees::from(result.0).0); // 90.002808565642
-        assert!(is_within_tolerance(
-            179.999999999945283834_f64.to_radians(),
-            (result.1).0,
-            4300.0 * f64::EPSILON
-        ));
-        assert_eq!(90.00263099449461, Degrees::from(result.2).0); // 89.997191434401322223
-        assert_eq!(20, result.3);
+        assert_eq!(89.99736901205219, Degrees::from(result.0).0); // 90.002808565642
+        assert_eq!(90.00263098794781, Degrees::from(result.2).0); // 89.997191434401322223
+        assert_eq!(2, result.3);
+
+        let beta_1 = WGS84_ELLIPSOID.calculate_parametric_latitude(Angle::from(Degrees(lat1d)));
+        let distance = convert_radians_to_metres(beta_1, result.0, result.1, &WGS84_ELLIPSOID);
+        // assert_eq!(19983285.439225797, distance.0); // 19983285.4392258
+        assert!(is_within_tolerance(19983285.4392258, distance.0, 1e-8));
+
     }
 }
