@@ -236,12 +236,19 @@ impl Ellipsoid {
         ellipsoid::calculate_epsilon(clairaut, self.ep_2)
     }
 
+    /// Calculate a3f from the A3 series `coefficients` of the ellipsoid.
+    /// * `eps` - epsilon
+    #[must_use]
+    pub fn calculate_a3f(&self, eps: f64) -> f64 {
+        ellipsoid::coefficients::evaluate_polynomial(&self.a3, eps)
+    }
+
     /// Calculate a3c from the A3 series `coefficients` of the ellipsoid.
     /// * `clairaut` - Clairaut's constant.
     /// * `eps` - epsilon
     #[must_use]
     pub fn calculate_a3c(&self, clairaut: trig::UnitNegRange, eps: f64) -> f64 {
-        self.f * clairaut.0 * ellipsoid::coefficients::evaluate_polynomial(&self.a3, eps)
+        self.f * clairaut.0 * self.calculate_a3f(eps)
     }
 
     /// Calculate the coefficients `C3[l]` in the Fourier expansion of `C3`.
