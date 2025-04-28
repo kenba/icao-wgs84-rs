@@ -104,7 +104,7 @@ fn test_geodesic_examples() -> Result<(), Box<dyn std::error::Error>> {
         let azi = Degrees::from(result.0);
         let delta_azimuth = libm::fabs(azi1.0 - azi.0);
         // reduce tolerance for entries running between or close to vertices
-        let azimuth_tolerance = if index <= 400000 { 5.331e-5 } else { 0.0852 };
+        let azimuth_tolerance = if index <= 400000 { 5.331e-5 } else { 2.0e-2 };
         if azimuth_tolerance < delta_azimuth {
             panic!(
                 "azimuth, line: {:?} lat1: {:?} delta: {:?} azimuth: {:?} calculated: {:?} delta_long: {:?} ",
@@ -136,7 +136,7 @@ fn test_geodesic_examples() -> Result<(), Box<dyn std::error::Error>> {
         let delta_length_m = libm::fabs(d_metres.0 - result_m.0);
         // if a short geodesic, test delta length, not delta length ratio
         if index >= 150000 && index < 200000 {
-            if 9.0e-5 < delta_length_m {
+            if 3.5e-9 < delta_length_m {
                 panic!(
                     "length, line: {:?} delta: {:?} length: {:?} result: {:?} ",
                     index, delta_length_m, d_metres, result_m
@@ -144,7 +144,7 @@ fn test_geodesic_examples() -> Result<(), Box<dyn std::error::Error>> {
             }
         } else {
             let delta_length_m_ratio = delta_length_m / d_metres.0;
-            if 2.5e-9 < delta_length_m_ratio {
+            if 2.0e-10 < delta_length_m_ratio {
                 panic!(
                     "length, line: {:?} delta ratio: {:?} length: {:?} result: {:?} ",
                     index, delta_length_m_ratio, d_metres, result_m

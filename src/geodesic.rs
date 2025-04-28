@@ -409,15 +409,18 @@ fn find_azimuths_and_arc_length(
 ) -> (Angle, Radians, Angle, u32) {
     let antipodal_arc_threshold: f64 = core::f64::consts::PI * ellipsoid.one_minus_f();
 
-    // Start at the latitude furthest from the Equator,
+    // Start at the latitude furthest from the Equator.
     let abs_beta_a = beta_a.abs();
     let abs_beta_b = beta_b.abs();
-    let swap_latitudes = (abs_beta_a.sin() < abs_beta_b.sin())
-        || ((abs_beta_a.sin() == abs_beta_b.sin()) && (abs_beta_a.cos() > abs_beta_b.cos()));
+    // Note: the algorithm is very sensitive to starting with the largest latitude
+    // so ensure furthest point is used by comparing sines AND cosines
+    let swap_latitudes =
+        (abs_beta_a.sin() < abs_beta_b.sin()) || (abs_beta_a.cos() > abs_beta_b.cos());
     let mut beta1 = if swap_latitudes { beta_b } else { beta_a };
     let mut beta2 = if swap_latitudes { beta_a } else { beta_b };
 
     // Start South of the Equator
+    // Note: sets negate_latitude if on the Equator for northerly azimuth results
     let negate_latitude = beta1.sin().0.is_sign_positive();
     if negate_latitude {
         beta1 = -beta1;
