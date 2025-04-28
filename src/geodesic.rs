@@ -27,7 +27,7 @@
 #![allow(clippy::many_single_char_names)]
 
 use crate::{ellipsoid, Ellipsoid, Metres};
-use angle_sc::{min, trig, trig::UnitNegRange, Angle, Radians};
+use angle_sc::{trig, trig::UnitNegRange, Angle, Radians};
 use unit_sphere::{great_circle, LatLong};
 
 /// Estimate omega12 by solving the astroid problem.
@@ -140,7 +140,7 @@ fn estimate_antipodal_initial_azimuth(
     // Calculate the integration parameter for geodesic
     let clairaut = beta1.cos(); // Note: assumes sin_alpha_1 = 1
     let eps = ellipsoid.calculate_epsilon(clairaut);
-    let a3f = ellipsoid::coefficients::evaluate_polynomial(&ellipsoid.a3(), eps);
+    let a3f = ellipsoid.calculate_a3f(eps);
 
     let lamscale = ellipsoid.f() * beta1.cos().0 * a3f * core::f64::consts::PI;
     let betscale = lamscale * beta1.cos().0;
@@ -151,7 +151,7 @@ fn estimate_antipodal_initial_azimuth(
 
     // Test x and y params
     if (y > -Y_TOLERANCE) && (x > -1.0 - x_threshold) {
-        let sin_alpha = UnitNegRange(min(1.0, -x));
+        let sin_alpha = UnitNegRange::clamp(-x);
         Angle::new(sin_alpha, trig::swap_sin_cos(sin_alpha))
     } else {
         let k = calculate_astroid(x, y);
@@ -487,6 +487,8 @@ pub fn aux_sphere_azimuths_length(
     tolerance: Radians,
     ellipsoid: &Ellipsoid,
 ) -> (Angle, Radians, Angle, u32) {
+    let max_equatorial_length = Radians(core::f64::consts::PI * ellipsoid.one_minus_f());
+
     let gc_azimuth = great_circle::calculate_gc_azimuth(beta1, beta2, delta_long);
     let gc_length = great_circle::calculate_gc_distance(beta1, beta2, delta_long);
 
@@ -503,8 +505,10 @@ pub fn aux_sphere_azimuths_length(
         (gc_azimuth, gc_length, end_azimuth, 0)
     } else {
         // Determine whether on an equatorial path, i.e. the circle around the equator.
-        // gc_azimuth is +/-90° and both latitudes are very close to the equator
-        if (gc_azimuth.cos().0 < great_circle::MIN_VALUE)
+        // gc_azimuth is +/-90°, the ends are NOT nearly antipodal
+        // and both latitudes are very close to the equator
+        if (gc_azimuth.cos().0 < f64::EPSILON)
+            && (gc_length < max_equatorial_length)
             && (beta1.abs().sin().0 < f64::EPSILON)
             && (beta2.abs().sin().0 < f64::EPSILON)
         {
@@ -725,6 +729,20 @@ mod tests {
         assert_eq!(90.0, Degrees::from(result.0).0);
         assert_eq!(3.0646012186391296, (result.1).0);
         assert_eq!(90.0, Degrees::from(result.2).0);
+    }
+
+    #[test]
+    fn test_calculate_azimuths_aux_length_equator_nearly_antipodal() {
+        let latlon1 = LatLong::new(Degrees(0.0), Degrees(0.0));
+        let latlon2 = LatLong::new(Degrees(0.0), Degrees(179.5));
+
+        let tolerance = Radians(great_circle::MIN_VALUE);
+
+        // Northbound geodesic segment along the equator
+        let result = calculate_azimuths_aux_length(&latlon1, &latlon2, tolerance, &WGS84_ELLIPSOID);
+        assert_eq!(55.94416957702605, Degrees::from(result.0).0);
+        // assert_eq!(core::f64::consts::PI, (result.1).0);
+        // assert_eq!(180.0 - 55.94416957702605, Degrees::from(result.2).0);
     }
 
     #[test]
@@ -972,7 +990,7 @@ mod tests {
 
         let beta_1 = WGS84_ELLIPSOID.calculate_parametric_latitude(Angle::from(Degrees(lat1d)));
         let distance = convert_radians_to_metres(beta_1, result.0, result.1, &WGS84_ELLIPSOID);
-        assert_eq!(20003922.22814904, distance.0); 
+        assert_eq!(20003922.22814904, distance.0);
     }
 
     #[test]
@@ -999,7 +1017,7 @@ mod tests {
 
         let beta_1 = WGS84_ELLIPSOID.calculate_parametric_latitude(Angle::from(Degrees(lat1d)));
         let distance = convert_radians_to_metres(beta_1, result.0, result.1, &WGS84_ELLIPSOID);
-        assert_eq!(19980861.90889096, distance.0); 
+        assert_eq!(19980861.90889096, distance.0);
     }
 
     #[test]
