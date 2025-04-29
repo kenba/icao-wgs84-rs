@@ -379,9 +379,6 @@ fn find_azimuth_length_newtons_method(
 
         // Calculate the change in initial azimuth
         let dalpha1 = UnitNegRange::clamp(-v / dv);
-        if dalpha1.abs().0 <= great_circle::MIN_VALUE {
-            break;
-        }
 
         // Adjust the azimuth by dalpha1
         alpha1 += Angle::from(Radians(dalpha1.0));
@@ -503,7 +500,7 @@ pub fn aux_sphere_azimuths_length(
     let gc_length = great_circle::calculate_gc_distance(beta1, beta2, delta_long);
 
     // Determine whether on a meridian, i.e. a great circle which passes through the North and South poles
-    if gc_azimuth.abs().sin().0 < great_circle::MIN_VALUE {
+    if gc_azimuth.abs().sin().0 < f64::EPSILON {
         // gc_azimuth is 0° or 180°
 
         // Use opposite azimuth if points on opposite meridians
@@ -1354,5 +1351,34 @@ mod tests {
         let distance = convert_radians_to_metres(beta_1, result.0, result.1, &WGS84_ELLIPSOID);
         // assert_eq!(20003758.108915098, distance.0); // 20003758.1089151
         assert!(is_within_tolerance(20003758.1089151, distance.0, 1e-8));
+    }
+
+    #[test]
+    fn test_calculate_azimuths_aux_length_geodtest_363211() {
+        // GeodTest.dat line 363211
+        // .000038441278 0 89.999992635974 -.000015952099001313 124.510013259106933605 90.000035627268873385 13860391.2746678 124.928876127323925865 5211668.6902177694444 30319949.475094
+
+        let lat1d = 0.000038441278;
+        let lat2d = -0.000015952099001313;
+        let lon2d = 124.510013259106933605;
+
+        let latlon1 = LatLong::new(Degrees(lat1d), Degrees(0.0));
+        let latlon2 = LatLong::new(Degrees(lat2d), Degrees(lon2d));
+
+        let result = calculate_azimuths_aux_length(
+            &latlon1,
+            &latlon2,
+            Radians(great_circle::MIN_VALUE),
+            &WGS84_ELLIPSOID,
+        );
+
+        assert_eq!(89.999992635974 , Degrees::from(result.0).0); // 89.999992635974
+        assert_eq!(90.00003562726887, Degrees::from(result.2).0); // 90.000035627268873385
+        assert_eq!(3, result.3);
+
+        let beta_1 = WGS84_ELLIPSOID.calculate_parametric_latitude(Angle::from(Degrees(lat1d)));
+        let distance = convert_radians_to_metres(beta_1, result.0, result.1, &WGS84_ELLIPSOID);
+        // assert_eq!(13860391.2746678, distance.0); // 13860391.2746678
+        assert!(is_within_tolerance(13860391.2746678, distance.0, 1e-8));
     }
 }

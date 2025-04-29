@@ -133,7 +133,7 @@ fn test_geodesic_examples() -> Result<(), Box<dyn std::error::Error>> {
             }
         } else {
             let delta_length_m_ratio = delta_length_m / d_metres.0;
-            if 2.0e-10 < delta_length_m_ratio {
+            if 5.0e-13 < delta_length_m_ratio {
                 panic!(
                     "length, line: {:?} delta ratio: {:?} length: {:?} result: {:?} ",
                     index, delta_length_m_ratio, d_metres, result_m
