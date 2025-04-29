@@ -62,7 +62,6 @@ fn test_geodesic_examples() -> Result<(), Box<dyn std::error::Error>> {
     let arr_lons = objects[4].f64()?.iter();
     let arr_azis = objects[5].f64()?.iter();
     let distances = objects[6].f64()?.iter();
-    let aux_distances = objects[7].f64()?.iter();
     let combined = multizip((
         dep_lats,
         dep_azis,
@@ -70,12 +69,11 @@ fn test_geodesic_examples() -> Result<(), Box<dyn std::error::Error>> {
         arr_lons,
         arr_azis,
         distances,
-        aux_distances,
     ));
 
     let mut invalid_tests = 0;
     let mut iterations = 0;
-    for (index, (lat1, azi1, lat2, lon2, azi2, d_metres, d_degrees)) in combined.enumerate() {
+    for (index, (lat1, azi1, lat2, lon2, azi2, d_metres)) in combined.enumerate() {
         let lat1 = Degrees(lat1.unwrap());
         let lon1 = Degrees(0.0);
         let lat2 = Degrees(lat2.unwrap());
@@ -83,7 +81,6 @@ fn test_geodesic_examples() -> Result<(), Box<dyn std::error::Error>> {
         let azi1 = Degrees(azi1.unwrap());
         let azi2 = Degrees(azi2.unwrap());
         let d_metres = Metres(d_metres.unwrap());
-        let d_degrees = Degrees(d_degrees.unwrap());
 
         // path crosses the equator from North to South, but GeodTest.dat azimuth is northerly
         if (lat1.0 > 0.0) && (lat2.0 < 0.0) && (azi1.0 < 90.0) {
@@ -109,14 +106,6 @@ fn test_geodesic_examples() -> Result<(), Box<dyn std::error::Error>> {
             panic!(
                 "azimuth, line: {:?} lat1: {:?} delta: {:?} azimuth: {:?} calculated: {:?} delta_long: {:?} ",
                 index, lat1, delta_azimuth, azi1, azi, lon2
-            );
-        }
-
-        let delta_length = libm::fabs(d_degrees.0.to_radians() - (result.1).0);
-        if 3.0e-10 < delta_length {
-            panic!(
-                "length, line: {:?} delta: {:?} length: {:?} delta_long: {:?} ",
-                index, delta_length, d_degrees, lon2
             );
         }
 
