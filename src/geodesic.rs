@@ -667,7 +667,7 @@ mod tests {
     }
 
     #[test]
-    fn test_calculate_azimuths_aux_length_meridian() {
+    fn test_calculate_azimuths_arc_length_meridian() {
         let latlon1 = LatLong::new(Degrees(-70.0), Degrees(40.0));
         let latlon2 = LatLong::new(Degrees(80.0), Degrees(40.0));
 
@@ -697,7 +697,7 @@ mod tests {
     }
 
     #[test]
-    fn test_calculate_azimuths_aux_length_equator() {
+    fn test_calculate_azimuths_arc_length_equator() {
         let latlon1 = LatLong::new(Degrees(0.0), Degrees(-40.0));
         let latlon2 = LatLong::new(Degrees(0.0), Degrees(50.0));
 
@@ -727,7 +727,7 @@ mod tests {
     }
 
     #[test]
-    fn test_calculate_azimuths_aux_length_equator_antipodal() {
+    fn test_calculate_azimuths_arc_length_equator_antipodal() {
         let latlon1 = LatLong::new(Degrees(0.0), Degrees(0.0));
         let latlon2 = LatLong::new(Degrees(0.0), Degrees(180.0));
 
@@ -742,7 +742,7 @@ mod tests {
     }
 
     #[test]
-    fn test_calculate_azimuths_aux_length_equator_nearly_antipodal() {
+    fn test_calculate_azimuths_arc_length_equator_nearly_antipodal() {
         let latlon1 = LatLong::new(Degrees(0.0), Degrees(0.0));
         let latlon2 = LatLong::new(Degrees(0.0), Degrees(179.5));
 
@@ -756,7 +756,7 @@ mod tests {
         assert_eq!(3, result.3);
     }
     #[test]
-    fn test_calculate_azimuths_aux_length_normal_01() {
+    fn test_calculate_azimuths_arc_length_normal_01() {
         // North West bound, straddle Equator
         let latlon1 = LatLong::new(Degrees(-40.0), Degrees(70.0));
         let latlon2 = LatLong::new(Degrees(30.0), Degrees(0.0));
@@ -780,7 +780,7 @@ mod tests {
             result.1,
             &WGS84_ELLIPSOID,
         );
-        let latlon3 = g.aux_lat_long(result.1);
+        let latlon3 = g.arc_lat_long(result.1, Angle::from(result.1));
         assert_eq!(
             Degrees::from(latlon3.lat()).0,
             Degrees::from(latlon2.lat()).0
@@ -793,7 +793,7 @@ mod tests {
     }
 
     #[test]
-    fn test_calculate_azimuths_aux_length_normal_02() {
+    fn test_calculate_azimuths_arc_length_normal_02() {
         // South West bound, straddle Equator
         let latlon1 = LatLong::new(Degrees(30.0), Degrees(70.0));
         let latlon2 = LatLong::new(Degrees(-40.0), Degrees(0.0));
@@ -817,7 +817,7 @@ mod tests {
             result.1,
             &WGS84_ELLIPSOID,
         );
-        let latlon3 = g.aux_lat_long(result.1);
+        let latlon3 = g.arc_lat_long(result.1, Angle::from(result.1));
         assert!(is_within_tolerance(
             Degrees::from(latlon2.lat()).0,
             Degrees::from(latlon3.lat()).0,
@@ -831,7 +831,7 @@ mod tests {
     }
 
     #[test]
-    fn test_calculate_azimuths_aux_length_normal_03() {
+    fn test_calculate_azimuths_arc_length_normal_03() {
         // South East bound, straddle Equator
         let latlon1 = LatLong::new(Degrees(30.0), Degrees(0.0));
         let latlon2 = LatLong::new(Degrees(-40.0), Degrees(70.0));
@@ -855,7 +855,7 @@ mod tests {
             result.1,
             &WGS84_ELLIPSOID,
         );
-        let latlon3 = g.aux_lat_long(result.1);
+        let latlon3 = g.arc_lat_long(result.1, Angle::from(result.1));
         assert!(is_within_tolerance(
             Degrees::from(latlon2.lat()).0,
             Degrees::from(latlon3.lat()).0,
@@ -869,7 +869,7 @@ mod tests {
     }
 
     #[test]
-    fn test_calculate_azimuths_aux_length_normal_04() {
+    fn test_calculate_azimuths_arc_length_normal_04() {
         // North East bound, straddle Equator
         let latlon1 = LatLong::new(Degrees(-40.0), Degrees(0.0));
         let latlon2 = LatLong::new(Degrees(30.0), Degrees(70.0));
@@ -893,7 +893,7 @@ mod tests {
             result.1,
             &WGS84_ELLIPSOID,
         );
-        let latlon3 = g.aux_lat_long(result.1);
+        let latlon3 = g.arc_lat_long(result.1, Angle::from(result.1));
         assert!(is_within_tolerance(
             Degrees::from(latlon2.lat()).0,
             Degrees::from(latlon3.lat()).0,
@@ -907,7 +907,7 @@ mod tests {
     }
 
     #[test]
-    fn test_calculate_azimuths_aux_length_normal_05() {
+    fn test_calculate_azimuths_arc_length_normal_05() {
         // North East bound, straddle Equator
         let latlon1 = LatLong::new(Degrees(0.0), Degrees(0.0));
         let latlon2 = LatLong::new(Degrees(0.5), Degrees(179.98));
@@ -925,7 +925,7 @@ mod tests {
     }
 
     #[test]
-    fn test_calculate_azimuths_aux_length_normal_06() {
+    fn test_calculate_azimuths_arc_length_normal_06() {
         // GeodTest.dat line 460107
         // 89.985810803742 0 90.033923043742 -89.985810803761488692 179.999716989078075251 89.966210133068275597 20003931.4528694 179.999999966908046132 .0036837809003 -47969483155.576793
         let latlon1 = LatLong::new(Degrees(89.985810803742), Degrees(0.0));
@@ -958,7 +958,7 @@ mod tests {
     }
 
     #[test]
-    fn test_calculate_azimuths_aux_length_normal_07() {
+    fn test_calculate_azimuths_arc_length_normal_07() {
         // GeodTest.dat line 4701132
         // 85.89252711453 0 90.028477847874 -85.892527114530046541 179.956663887832388079 89.971522153429881464 20003758.1089151 179.999999999906050673 .0000961077487 -40347877014.28062
         let latlon1 = LatLong::new(Degrees(85.89252711453), Degrees(0.0));
@@ -986,7 +986,7 @@ mod tests {
     }
 
     #[test]
-    fn test_calculate_azimuths_aux_length_normal_08() {
+    fn test_calculate_azimuths_arc_length_normal_08() {
         // GeodTest.dat line 470905
         // 56.706063494255 0 89.959815697468 -56.706063494254993895 179.668131859151492609 90.0401843025452288 19993766.626695 179.999999999991283078 .0100047302652 56858075837.296755
         let latlon1 = LatLong::new(Degrees(56.706063494255), Degrees(0.0));
@@ -1013,7 +1013,7 @@ mod tests {
     }
 
     #[test]
-    fn test_calculate_azimuths_aux_length_normal_09() {
+    fn test_calculate_azimuths_arc_length_normal_09() {
         // GeodTest.dat line 497725
         // 85.224117973184 0 89.957303913327 -85.2241179731839905 179.949627233487121769 90.042696086825586442 20003697.2437342 179.999999999987208748 .000261547236 60492019939.566295
         let latlon1 = LatLong::new(Degrees(85.224117973184), Degrees(0.0));
@@ -1046,7 +1046,7 @@ mod tests {
     }
 
     #[test]
-    fn test_calculate_azimuths_aux_length_normal_10() {
+    fn test_calculate_azimuths_arc_length_normal_10() {
         // GeodTest.dat line 451464. but antipodal
         let lat1d = 30.815985336295;
         let lat2d = -30.8159853362949972;
@@ -1073,7 +1073,7 @@ mod tests {
     }
 
     #[test]
-    fn test_calculate_azimuths_aux_length_normal_11() {
+    fn test_calculate_azimuths_arc_length_normal_11() {
         // GeodTest.dat line 451464. but nearly antipodal
         let lat1d = 30.815985336295;
         let lat2d = -30.8159853362949972;
@@ -1100,7 +1100,7 @@ mod tests {
     }
 
     #[test]
-    fn test_calculate_azimuths_aux_length_normal_12() {
+    fn test_calculate_azimuths_arc_length_normal_12() {
         // GeodTest.dat line 451464. but slightly closer to antiopodal
         let lat1d = 30.815985336295;
         let lat2d = -30.8159853362949972;
@@ -1127,7 +1127,7 @@ mod tests {
     }
 
     #[test]
-    fn test_calculate_azimuths_aux_length_geodtest_451464() {
+    fn test_calculate_azimuths_arc_length_geodtest_451464() {
         // GeodTest.dat line 451464
         // 30.815985336295 0 89.999989151475 -30.8159853362949972 179.481356807121660669 90.000010857299389702 19979110.018652 179.999999985240671654 .0016389343224 15326161.345917
         let lat1d = 30.815985336295;
@@ -1154,7 +1154,7 @@ mod tests {
     }
 
     #[test]
-    fn test_calculate_azimuths_aux_length_geodtest_457539() {
+    fn test_calculate_azimuths_arc_length_geodtest_457539() {
         // GeodTest.dat line 457539
         // 50.853729012223 0 89.99999358451 -50.853729012222999629 179.61842826953446462 90.00000641955036513 19990494.4151505 179.999999996683663418 .0003686784385 9076399.666959
         let lat1d = 50.853729012223;
@@ -1187,7 +1187,7 @@ mod tests {
     }
 
     #[test]
-    fn test_calculate_azimuths_aux_length_geodtest_459042() {
+    fn test_calculate_azimuths_arc_length_geodtest_459042() {
         // GeodTest.dat line 459042
         // 80.614649787777 0 89.999981005382 -80.614649787776995822 179.901342365578970087 90.000019070703465263 20003033.0359723 179.999999987381812901 .0014045245045 26963180.980693
         let lat1d = 80.614649787777;
@@ -1220,7 +1220,7 @@ mod tests {
     }
 
     #[test]
-    fn test_calculate_azimuths_aux_length_geodtest_461124() {
+    fn test_calculate_azimuths_arc_length_geodtest_461124() {
         // GeodTest.dat line 461124
         // 83.829512252973 0 90.006690097427 -83.829512252973003785 179.934969072220767866 89.993309902872831362 20003541.1016439 179.999999999967475093 .0000142648344 -9478364844.203696
         let lat1d = 83.829512252973;
@@ -1248,7 +1248,7 @@ mod tests {
     }
 
     #[test]
-    fn test_calculate_azimuths_aux_length_geodtest_472656() {
+    fn test_calculate_azimuths_arc_length_geodtest_472656() {
         // GeodTest.dat line 472656
         // 89.725731151764 0 89.99999412823 -89.725731151763992167 179.997094777788067591 90.000014899078757451 20003930.6795515 179.999999956641523093 .0048266431982 14714576.102069
         let lat1d = 89.725731151764;
@@ -1280,7 +1280,7 @@ mod tests {
     }
 
     #[test]
-    fn test_calculate_azimuths_aux_length_geodtest_475646() {
+    fn test_calculate_azimuths_arc_length_geodtest_475646() {
         // GeodTest.dat line 475646
         // 38.464554001342 0 90.002808565642 -38.464554001342002684 179.526999021189467903 89.997191434401322223 19983285.4392258 179.999999999945283834 .0001053731912 -3968382822.969946
         let lat1d = 38.464554001342;
@@ -1308,7 +1308,7 @@ mod tests {
     }
 
     #[test]
-    fn test_calculate_azimuths_aux_length_geodtest_470131() {
+    fn test_calculate_azimuths_arc_length_geodtest_470131() {
         // GeodTest.dat line 470131
         // 85.89252711453 0 90.028477847874 -85.892527114530046541 179.956663887832388079 89.971522153429881464 20003758.1089151 179.999999999906050673 .0000961077487 -40347877014.28062
         let lat1d = 85.89252711453;
@@ -1336,7 +1336,7 @@ mod tests {
     }
 
     #[test]
-    fn test_calculate_azimuths_aux_length_geodtest_363211() {
+    fn test_calculate_azimuths_arc_length_geodtest_363211() {
         // GeodTest.dat line 363211
         // .000038441278 0 89.999992635974 -.000015952099001313 124.510013259106933605 90.000035627268873385 13860391.2746678 124.928876127323925865 5211668.6902177694444 30319949.475094
 

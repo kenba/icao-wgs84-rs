@@ -69,8 +69,8 @@ pub fn calculate_geodesic_intersection_distances(
     let (mut distance1, mut distance2) = initial_distances;
     let mut iterations = 1;
     while iterations < MAX_ITERATIONS {
-        let (pos1, pole1) = g1.aux_point_and_pole(distance1);
-        let (pos2, pole2) = g2.aux_point_and_pole(distance2);
+        let (pos1, pole1) = g1.arc_point_and_pole(distance1);
+        let (pos2, pole2) = g2.arc_point_and_pole(distance2);
 
         let sq_d = vector::sq_distance(&pos1, &pos2);
         if sq_d < sq_precision {
@@ -133,7 +133,7 @@ pub fn calculate_sphere_intersection_distances(
         (Radians(0.0), Radians(0.0), 0)
     } else {
         // Calculate geodesic path between start positions
-        let (g3_azi, g3_aux_length, g3_end_azi, _) = geodesic::aux_sphere_azimuths_length(
+        let (g3_azi, g3_arc_length, g3_end_azi, _) = geodesic::aux_sphere_azimuths_length(
             g1.beta(),
             g2.beta(),
             g2.lon() - g1.lon(),
@@ -142,11 +142,12 @@ pub fn calculate_sphere_intersection_distances(
         );
 
         // Determine whether the geodesics are reciprocal
-        let reciprocal = g1.pole().dot(&g2.pole()) < 0.0;
+        let delta_azimuth1_2 = g1.azi() - g2.azi();
+        let reciprocal = delta_azimuth1_2.cos().0.is_sign_negative();
         let atd = if reciprocal {
-            -g3_aux_length
+            -g3_arc_length
         } else {
-            g3_aux_length
+            g3_arc_length
         };
 
         // Determine whether the geodesics are coincident
@@ -170,10 +171,10 @@ pub fn calculate_sphere_intersection_distances(
         } else {
             // Calculate the intersection of the poles at the mid points of the unit
             // sphere great circle arcs
-            let half_aux_length1 = Radians(0.5 * g1.arc_length().0);
-            let half_aux_length2 = Radians(0.5 * g2.arc_length().0);
-            let (a1mid, pole1mid) = g1.aux_point_and_pole(half_aux_length1);
-            let (a2mid, pole2mid) = g2.aux_point_and_pole(half_aux_length2);
+            let half_arc_length1 = Radians(0.5 * g1.arc_length().0);
+            let half_arc_length2 = Radians(0.5 * g2.arc_length().0);
+            let (a1mid, pole1mid) = g1.arc_point_and_pole(half_arc_length1);
+            let (a2mid, pole2mid) = g2.arc_point_and_pole(half_arc_length2);
 
             // Determine whether the great circles on the unit sphere are coincident
             vector::intersection::calculate_intersection(&pole1mid, &pole2mid).map_or_else(
@@ -199,8 +200,8 @@ pub fn calculate_sphere_intersection_distances(
                             &a1mid, &pole1mid, &a2mid, &pole2mid, &c,
                         );
                     // calculate distances from arc start
-                    distance1 += half_aux_length1;
-                    distance2 += half_aux_length2;
+                    distance1 += half_arc_length1;
+                    distance2 += half_arc_length2;
                     calculate_geodesic_intersection_distances(
                         g1,
                         g2,
@@ -274,22 +275,17 @@ mod tests {
 
         // Split g into two geodesics
         let half_length = Metres(g.length().0 / 2.0);
-        let half_aux_length = g.metres_to_radians(half_length);
+        let half_arc_length = g.metres_to_radians(half_length);
 
         // a geodesic from the start of g to its mid point
-        let g1 = GeodesicSegment::new(
-            g.beta(),
-            g.lon(),
-            g.aux_azimuth(Radians(0.0)),
-            half_aux_length,
-            g.ellipsoid(),
-        );
+        let g1 = GeodesicSegment::new(g.beta(), g.lon(), g.azi(), half_arc_length, g.ellipsoid());
         // a geodesic from the mid point of g to its end
+        let half_arc_length_angle = Angle::from(half_arc_length);
         let g2 = GeodesicSegment::new(
-            g.aux_beta(Angle::from(half_aux_length)),
-            g.aux_longitude(half_aux_length),
-            g.aux_azimuth(half_aux_length),
-            g.arc_length() - half_aux_length,
+            g.arc_beta(half_arc_length_angle),
+            g.arc_longitude(half_arc_length, half_arc_length_angle),
+            g.arc_azimuth(half_arc_length_angle),
+            g.arc_length() - half_arc_length,
             g.ellipsoid(),
         );
 
@@ -309,10 +305,10 @@ mod tests {
 
         // a geodesic from the mid point of g to another point
         let g3 = GeodesicSegment::new(
-            g.aux_beta(Angle::from(half_aux_length)),
-            g.aux_longitude(half_aux_length),
-            g.aux_azimuth(Radians(0.0)),
-            half_aux_length,
+            g.arc_beta(Angle::from(half_arc_length)),
+            g.arc_longitude(half_arc_length, half_arc_length_angle),
+            g.azi(),
+            half_arc_length,
             g.ellipsoid(),
         );
 
