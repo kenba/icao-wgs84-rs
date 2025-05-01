@@ -248,11 +248,9 @@ fn calculate_reduced_length(
         cb[i] = a1p1 * ca[i] - a2p1 * cb[i];
     }
 
-    let j12 = m0x
-        * (sigma12
-            + (ellipsoid::coefficients::sin_cos_series(&cb, sigma2)
-                - ellipsoid::coefficients::sin_cos_series(&cb, sigma1)))
-        .0;
+    let j12 = m0x * sigma12.0
+        + (ellipsoid::coefficients::sin_cos_series(&cb, sigma2).0
+            - ellipsoid::coefficients::sin_cos_series(&cb, sigma1).0);
     dn2 * (sigma1.cos().0 * sigma2.sin().0)
         - dn1 * (sigma1.sin().0 * sigma2.cos().0)
         - sigma1.cos().0 * sigma2.cos().0 * j12
@@ -770,7 +768,7 @@ mod tests {
         assert_eq!(-55.00473169905793, Degrees::from(result.0).0);
         assert_eq!(1.6656790467428877, (result.1).0);
         assert_eq!(-46.47061016713593, Degrees::from(result.2).0);
-        assert_eq!(5, result.3);
+        assert_eq!(3, result.3);
 
         let beta1 = WGS84_ELLIPSOID.calculate_parametric_latitude(Angle::from(Degrees(-40.0)));
         let g = GeodesicSegment::new(
@@ -807,7 +805,7 @@ mod tests {
         assert_eq!(-133.52938983286407, Degrees::from(result.0).0);
         assert_eq!(1.6656790467428877, (result.1).0);
         assert_eq!(-124.99526830094207, Degrees::from(result.2).0);
-        assert_eq!(5, result.3);
+        assert_eq!(3, result.3);
 
         let beta1 = WGS84_ELLIPSOID.calculate_parametric_latitude(Angle::from(Degrees(30.0)));
         let g = GeodesicSegment::new(
@@ -845,7 +843,7 @@ mod tests {
         assert_eq!(133.52938983286407, Degrees::from(result.0).0);
         assert_eq!(1.6656790467428877, (result.1).0);
         assert_eq!(124.99526830094207, Degrees::from(result.2).0);
-        assert_eq!(5, result.3);
+        assert_eq!(3, result.3);
 
         let beta1 = WGS84_ELLIPSOID.calculate_parametric_latitude(Angle::from(Degrees(30.0)));
         let g = GeodesicSegment::new(
@@ -883,7 +881,7 @@ mod tests {
         assert_eq!(55.00473169905793, Degrees::from(result.0).0);
         assert_eq!(1.6656790467428877, (result.1).0);
         assert_eq!(46.47061016713593, Degrees::from(result.2).0);
-        assert_eq!(5, result.3);
+        assert_eq!(3, result.3);
 
         let beta1 = WGS84_ELLIPSOID.calculate_parametric_latitude(Angle::from(Degrees(-40.0)));
         let g = GeodesicSegment::new(
@@ -918,10 +916,10 @@ mod tests {
             Radians(great_circle::MIN_VALUE),
             &WGS84_ELLIPSOID,
         );
-        assert_eq!(1.0420381519981552, Degrees::from(result.0).0);
+        assert_eq!(1.0420381519981656, Degrees::from(result.0).0);
         assert_eq!(3.132893826005981, (result.1).0);
         assert_eq!(178.9579224301469, Degrees::from(result.2).0);
-        assert_eq!(5, result.3);
+        assert_eq!(3, result.3);
     }
 
     #[test]

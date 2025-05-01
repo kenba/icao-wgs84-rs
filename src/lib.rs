@@ -1260,7 +1260,7 @@ mod tests {
         assert!(g1.is_valid());
 
         let end_azimuth = Degrees::from(g1.azimuth(g1.length()));
-        assert_eq!(-132.26466071163756, end_azimuth.0);
+        assert_eq!(-132.2646607116376, end_azimuth.0);
 
         let mut g1_clone = g1.clone();
         assert_eq!(g1_clone, g1);
@@ -1347,7 +1347,7 @@ mod tests {
         assert!(is_within_tolerance(
             -25.694568908316413,
             Degrees::from(mid_position.lon()).0,
-            64.0 * f64::EPSILON
+            128.0 * f64::EPSILON
         ));
 
         let mid_length = g1.metres_to_radians(half_length);
@@ -1365,7 +1365,7 @@ mod tests {
         assert!(is_within_tolerance(
             -25.694568908316413,
             Degrees::from(mid_lon).0,
-            64.0 * f64::EPSILON
+            128.0 * f64::EPSILON
         ));
 
         let precision = Radians(1e-3 / WGS84_ELLIPSOID.a().0);
