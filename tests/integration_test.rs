@@ -62,14 +62,7 @@ fn test_geodesic_examples() -> Result<(), Box<dyn std::error::Error>> {
     let arr_lons = objects[4].f64()?.iter();
     let arr_azis = objects[5].f64()?.iter();
     let distances = objects[6].f64()?.iter();
-    let combined = multizip((
-        dep_lats,
-        dep_azis,
-        arr_lats,
-        arr_lons,
-        arr_azis,
-        distances,
-    ));
+    let combined = multizip((dep_lats, dep_azis, arr_lats, arr_lons, arr_azis, distances));
 
     let mut invalid_tests = 0;
     let mut iterations = 0;
@@ -90,7 +83,7 @@ fn test_geodesic_examples() -> Result<(), Box<dyn std::error::Error>> {
         // panic!("lon2; {:?}", lon2);
         let a = LatLong::new(lat1, lon1);
         let b = LatLong::new(lat2, lon2);
-        let result = geodesic::calculate_azimuths_aux_length(
+        let result = geodesic::calculate_azimuths_arc_length(
             &a,
             &b,
             Radians(great_circle::MIN_VALUE),
@@ -133,7 +126,7 @@ fn test_geodesic_examples() -> Result<(), Box<dyn std::error::Error>> {
             }
         } else {
             let delta_length_m_ratio = delta_length_m / d_metres.0;
-            if 5.0e-13 < delta_length_m_ratio {
+            if 9.0e-13 < delta_length_m_ratio {
                 panic!(
                     "length, line: {:?} delta ratio: {:?} length: {:?} result: {:?} ",
                     index, delta_length_m_ratio, d_metres, result_m

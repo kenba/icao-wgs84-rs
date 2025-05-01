@@ -333,7 +333,7 @@ pub fn calculate_azimuths_and_geodesic_length(
     ellipsoid: &Ellipsoid,
 ) -> (Angle, Metres, Angle) {
     let (alpha1, gc_distance, alpha2, _) =
-        geodesic::calculate_azimuths_aux_length(a, b, tolerance, ellipsoid);
+        geodesic::calculate_azimuths_arc_length(a, b, tolerance, ellipsoid);
     let beta1 =
         ellipsoid::calculate_parametric_latitude(Angle::from(a.lat()), ellipsoid.one_minus_f());
     (
@@ -402,8 +402,7 @@ impl<'a> GeodesicSegment<'a> {
         let azi0 = Angle::new(clairaut, trig::swap_sin_cos(clairaut));
 
         // Calculate the distance to the first Equator crossing
-        let cos_omega1 = geodesic::calculate_cos_omega(beta, azi.cos());
-        let sigma1 = Angle::from_y_x(beta.sin().0, cos_omega1.0);
+        let sigma1 = Angle::from_y_x(beta.sin().0, beta.cos().0 * azi.cos().0);
 
         // Calculate eps and c1 for calculating coefficients
         let eps = ellipsoid.calculate_epsilon(azi0.sin());
@@ -479,7 +478,7 @@ impl<'a> GeodesicSegment<'a> {
         ellipsoid: &'a Ellipsoid,
     ) -> Self {
         let (azimuth, arc_length, _, _) =
-            geodesic::calculate_azimuths_aux_length(a, b, tolerance, ellipsoid);
+            geodesic::calculate_azimuths_arc_length(a, b, tolerance, ellipsoid);
         let a_lat = Angle::from(a.lat());
         // if a is at the North or South pole
         if a_lat.cos().0 < great_circle::MIN_VALUE {
@@ -672,7 +671,7 @@ impl<'a> GeodesicSegment<'a> {
             let omega12 = Angle::from_y_x(self.azi0.sin().0 * sigma_sum.sin().0, sigma_sum.cos().0)
                 - Angle::from_y_x(
                     self.azi0.sin().0 * self.beta.sin().0,
-                    geodesic::calculate_cos_omega(self.beta, self.azi.cos()).0,
+                    self.beta.cos().0 * self.azi.cos().0,
                 );
 
             let c3 = self.ellipsoid.calculate_c3y(self.eps);
