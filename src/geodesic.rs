@@ -45,7 +45,7 @@ fn calculate_astroid(x: f64, y: f64) -> f64 {
 
     // y = 0 with |x| <= 1
     // for y small, positive root is k = abs(y)/sqrt(1-x^2)
-    if (q <= 0.0) && (r <= 0.0) {
+    if (q == 0.0) && (r <= 0.0) {
         0.0
     } else {
         let s = p * q / 4.0;
@@ -56,14 +56,15 @@ fn calculate_astroid(x: f64, y: f64) -> f64 {
         // The discriminant of the quadratic equation for T3.
         // This is zero on the evolute curve p^(1/3)+q^(1/3) = 1
         let discriminant = s * (s + 2.0 * r3);
-        if 0.0 <= discriminant {
+        if discriminant >= 0.0 {
             let mut t3 = s + r3;
             // Pick the sign on the sqrt to maximize abs(T3), to minimise loss
             // of precision due to cancellation.
             t3 += libm::copysign(libm::sqrt(discriminant), t3);
             let t = libm::cbrt(t3);
-            u += t + if t == 0.0 { 0.0 } else { r2 / t };
+            u += t + (if t == 0.0 { 0.0 } else { r2 / t });
         } else {
+            // discriminant < 0.0
             // T is complex, but the way u is defined the result is real.
             let angle = libm::atan2(libm::sqrt(-discriminant), -(s + r3));
             // There are three possible cube roots.  We choose the root which
@@ -111,7 +112,7 @@ fn estimate_antipodal_initial_azimuth(
 
     // Solve astroid problem
     let x = Radians::from(abs_lambda12.opposite()).0 / lamscale;
-    let y = trig::sine_sum(beta1.sin(), beta1.cos(), beta2.sin(), beta2.cos()).0 / betscale;
+    let y = (beta1 + beta2).sin().0 / betscale;
 
     // Test x and y params
     if (y > -Y_TOLERANCE) && (x > -1.0 - x_threshold) {
@@ -152,7 +153,7 @@ fn calculate_end_azimuth(beta1: Angle, beta2: Angle, alpha1: Angle) -> Angle {
             (beta1.sin().0 - beta2.sin().0) * (beta1.sin().0 + beta2.sin().0)
         };
         let temp3 = temp1 * temp1 + temp2;
-        let temp4 = if 0.0 < temp3 {
+        let temp4 = if temp3 > 0.0 {
             libm::sqrt(temp3) / beta2.cos().0
         } else {
             0.0
@@ -287,8 +288,8 @@ fn find_azimuth_length_newtons_method(
     // The maximum number of iterations to attempt.
     const MAX_ITERS: u32 = MAX_ITER1 + f64::DIGITS + 10;
 
-    let dn1 = libm::sqrt(1.0 + ellipsoid.ep_2() * beta1.sin().0 * beta1.sin().0);
-    let dn2 = libm::sqrt(1.0 + ellipsoid.ep_2() * beta2.sin().0 * beta2.sin().0);
+    let dn1 = libm::sqrt(1.0 + ellipsoid.ep_2() * beta1.sin().0.powi(2));
+    let dn2 = libm::sqrt(1.0 + ellipsoid.ep_2() * beta2.sin().0.powi(2));
 
     let mut alpha1 = alpha;
     let mut sigma12_rad = gc_length;
@@ -615,7 +616,7 @@ mod tests {
         assert!(is_within_tolerance(
             30.0,
             Degrees::from(result).0,
-            32.0 * f64::EPSILON
+            16.0 * f64::EPSILON
         ));
 
         let result: Angle = calculate_end_azimuth(-angle_50, angle_50, angle_20);
