@@ -216,22 +216,25 @@ pub fn evaluate_coeffs_c3y(coeffs: &[f64], eps: f64) -> [f64; 6] {
 #[must_use]
 pub fn sin_cos_series(coeffs: &[f64], angle: Angle) -> Radians {
     let angle2x = angle.double();
-    let mut k0 = 0.0;
 
-    if angle2x.sin().abs().0 >= f64::EPSILON {
-        let mut index = coeffs.len() - 1;
-        let mut k1 = 0.0;
-
-        let coeffs_length_is_odd = 0 != (coeffs.len() & 1);
-        if coeffs_length_is_odd {
-            k1 = coeffs[index];
-            index -= 1;
-        }
-        k0 = coeffs[index];
-        index -= 1;
-
+    if angle2x.sin().abs().0 < f64::EPSILON {
+        Radians(0.0)
+    } else {
         // the Clenshaw ak(theta) parameter, beta(k) = -1
         let ar = 2.0 * angle2x.cos().0;
+
+        let mut index = coeffs.len() - 1;
+        let coeffs_length_is_odd = 0 != (index & 1);
+        let mut k1 = if coeffs_length_is_odd {
+            0.0
+        } else {
+            coeffs[index]
+        };
+        if !coeffs_length_is_odd {
+            index -= 1;
+        }
+        let mut k0 = coeffs[index] + ar * k1;
+        index -= 1;
 
         // Unroll loop x 2, so accumulators return to their original role.
         while 0 < index {
@@ -240,9 +243,8 @@ pub fn sin_cos_series(coeffs: &[f64], angle: Angle) -> Radians {
             k0 = coeffs[index] + (ar * k1 - k0);
             index -= 1;
         }
+        Radians(angle2x.sin().0 * k0)
     }
-
-    Radians(angle2x.sin().0 * k0)
 }
 
 #[cfg(test)]
@@ -344,6 +346,17 @@ mod tests {
         assert_eq!(9.964762770100143e-10, c3y[3]);
         assert_eq!(1.7628733595825342e-12, c3y[4]);
         assert_eq!(3.5514305923724795e-15, c3y[5]);
+    }
+
+    #[test]
+    fn test_sin_cos_series_c1() {
+        let eps45 = calculate_sq_2nd_eccentricity(wgs84::F) / 2.0;
+        let c1 = evaluate_coeffs_c1( eps45);
+
+        let angle = Angle::from(Radians(0.1 * std::f64::consts::PI));
+        let sin_cos_c1 = sin_cos_series(&c1, angle);
+
+        assert_eq!(-0.0009910157012782634, sin_cos_c1.0);
     }
 
     #[test]
