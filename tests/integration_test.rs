@@ -103,7 +103,8 @@ fn test_geodesic_examples() -> Result<(), Box<dyn std::error::Error>> {
         }
 
         // Compare end_azimuths
-        let delta_azimuth = libm::fabs(azi2.0 - Degrees::from(result.2).0);
+        let end_azi = Degrees::from(result.2);
+        let delta_azimuth = libm::fabs(azi2.0 - end_azi.0);
         if azimuth_tolerance < delta_azimuth {
             panic!(
                 "end azimuth, line: {:?} delta: {:?} azimuth: {:?} delta_long: {:?} ",
@@ -133,6 +134,8 @@ fn test_geodesic_examples() -> Result<(), Box<dyn std::error::Error>> {
                 );
             }
         }
+
+        // println!("{} 0 {} {} {} {} {}", lat1.0, azi.0, lat2.0, lon2.0, end_azi.0, result_m.0);
 
         //  random_df = tests_df[:100000]
         //  antipodal_df = tests_df[100000:150000]
