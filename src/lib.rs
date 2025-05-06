@@ -42,26 +42,26 @@
 //! and the USA making GPS available for civilian use in 1983.
 //!
 //! This library uses the WGS-84 primary parameters defined in Tab. 3-1 of the
-//! [ICAO WGS-84 Implementation Manual](https://www.icao.int/safety/pbn/Documentation/EUROCONTROL/Eurocontrol%20WGS%2084%20Implementation%20Manual.pdf).
+//! [ICAO WGS-84 Implementation Manual](https://www.icao.int/NACC/Documents/Meetings/2014/ECARAIM/REF08-Doc9674.pdf).
 //!
 //! ## Geodesic navigation
 //!
 //! The shortest path between two points on the surface of an ellipsoid is a
-//! [geodesic segment](https://en.wikipedia.org/wiki/Geodesics_on_an_ellipsoid) -
-//! the equivalent of straight line segments in planar geometry or
-//! [great circle](https://en.wikipedia.org/wiki/Great_circle) arcs on the surface of a
-//! sphere, see *Figure 2*.
+//! [geodesic segment](https://en.wikipedia.org/wiki/Geodesics_on_an_ellipsoid).
+//! It is the equivalent of a straight line segment in planar geometry or a
+//! [great circle arc](https://en.wikipedia.org/wiki/Great_circle) on the
+//! surface of a sphere, see *Figure 2*.
 //!
 //! <img src="https://via-technology.aero/img/navigation/ellipsoid/sphere_mercator_long_geodesic.png" width="400">
 //!
-//! *Figure 2 A geodesic (orange) segment and great circle (blue) arc*
+//! *Figure 2 A geodesic segment (orange) and a great circle  arc (blue)*
 //!
 //! This library uses the correspondence between geodesic segments on an ellipsoid
-//! and great-circle arcs on a unit sphere together with 3D vectors to calculate:
+//! and great-circle arcs on a unit sphere, together with 3D vectors to calculate:
 //!
-//! - the azimuths and length of a geodesic segment between two positions;
-//! - the along track distance and across track distance of a position relative to a geodesic segment;
-//! - and the intersection of a pair of geodesic segments.
+//! - the length and azimuths of a geodesic segment between two positions;
+//! - the along track and across track distances of a point relative to a geodesic segment;
+//! - and the intersection of two geodesic segments.
 //!
 //! See: [geodesic algorithms](https://via-technology.aero/navigation/geodesic-algorithms/).
 //!
@@ -70,9 +70,8 @@
 //! The library is based on Charles Karney's [GeographicLib](https://geographiclib.sourceforge.io/) library.
 //!
 //! Like `GeographicLib`, it models geodesic segments as great circle arcs on
-//! the surface of a unit sphere. However, it also uses vectors to
-//! calculate along track distances, across track distances and
-//! intersections between geodesics.
+//! the surface of a unit sphere. However, it also uses vectors to perform
+//! calculations between geodesic segments.
 //!
 //! The `Ellipsoid` class represents an ellipsoid of revolution.
 //! The static `WGS84_ELLIPSOID` represents the WGS-84 `Ellipsoid` which is used
@@ -214,18 +213,6 @@ impl Ellipsoid {
     #[must_use]
     pub const fn n(&self) -> f64 {
         self.n
-    }
-
-    /// The A3 series `coefficients` of the ellipsoid.
-    #[must_use]
-    pub const fn a3(&self) -> [f64; 6] {
-        self.a3
-    }
-
-    /// The C3x series `coefficients` of the ellipsoid.
-    #[must_use]
-    pub const fn c3x(&self) -> [f64; 15] {
-        self.c3x
     }
 
     /// Calculate epsilon, the variable used in series expansions.
@@ -1074,11 +1061,6 @@ mod tests {
         assert_eq!(
             ellipsoid::calculate_3rd_flattening(ellipsoid::wgs84::F),
             geoid.n()
-        );
-
-        assert_eq!(
-            ellipsoid::coefficients::evaluate_coeffs_c3x(geoid.n()),
-            geoid.c3x()
         );
 
         let point = geoid.to_arc_point(Angle::from(Degrees(45.0)), Angle::from(Degrees(45.0)));

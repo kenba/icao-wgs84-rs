@@ -25,21 +25,21 @@ This library uses the WGS-84 primary parameters defined in Table 3-1 of the
 ## Geodesic navigation
 
 The shortest path between two points on the surface of an ellipsoid is a
-[geodesic segment](https://en.wikipedia.org/wiki/Geodesics_on_an_ellipsoid) -
-the equivalent of straight line segments in planar geometry or
-[great circle](https://en.wikipedia.org/wiki/Great_circle) arcs on the surface of a
-sphere, see *Figure 2*.
+[geodesic segment](https://en.wikipedia.org/wiki/Geodesics_on_an_ellipsoid).
+It is the equivalent of a straight line segment in planar geometry or a
+[great circle arc](https://en.wikipedia.org/wiki/Great_circle) on the
+surface of a sphere, see *Figure 2*.
 
 <img src="https://via-technology.aero/img/navigation/ellipsoid/sphere_mercator_long_geodesic.png" width="600">
 
-*Figure 2 A geodesic (orange) segment and great circle (blue) arc*
+*Figure 2 A geodesic segment (orange) and a great circle  arc (blue)*
 
 This library uses the correspondence between geodesic segments on an ellipsoid
-and great-circle arcs on a unit sphere together with 3D vectors to calculate:
+and great-circle arcs on a unit sphere, together with 3D vectors to calculate:
 
-- the initial azimuth and length of a geodesic segment between two positions;
-- the along track distance and across track distance of a position relative to a geodesic segment;
-- and the intersection of a pair of geodesic segments.
+- the length and azimuths of a geodesic segment between two positions;
+- the along track and across track distances of a point relative to a geodesic segment;
+- and the intersection of two geodesic segments.
 
 See: [geodesic algorithms](https://via-technology.aero/navigation/geodesic-algorithms/).
 
@@ -48,9 +48,8 @@ See: [geodesic algorithms](https://via-technology.aero/navigation/geodesic-algor
 The library is based on Charles Karney's [GeographicLib](https://geographiclib.sourceforge.io/) library.
 
 Like `GeographicLib`, it models geodesic segments as great circle arcs on
-the surface of a unit sphere. However, it also uses vectors to
-calculate along track distances, across track distances and
-intersections between geodesic segments.  
+the surface of a unit sphere. However, it also uses vectors to perform
+calculations between geodesic segments.
 
 The `Ellipsoid` class represents an ellipsoid of revolution.  
 The static `WGS84_ELLIPSOID` represents the WGS-84 `Ellipsoid` which is used
@@ -75,8 +74,8 @@ so it can be used in embedded applications.
 
 ### Calculate geodesic initial azimuths and length
 
-Calculate the initial azimuths (a.k.a bearing) in degrees and
-distance in Nautical Miles between two positions.
+Calculate the distance in Nautical Miles and azimuths (a.k.a bearing) in degrees
+between two positions.
 
 ```rust
 use icao_wgs84::*;
@@ -85,11 +84,11 @@ let istanbul = LatLong::new(Degrees(42.0), Degrees(29.0));
 let washington = LatLong::new(Degrees(39.0), Degrees(-77.0));
 let (azimuth, length, end_azimuth) = calculate_azimuths_and_geodesic_length(&istanbul, &washington, Radians(great_circle::MIN_VALUE), &WGS84_ELLIPSOID);
 
-let azimuth_degrees = Degrees::from(azimuth);
-println!("Istanbul-Washington initial azimuth: {:?}", azimuth_degrees.0);
-
 let distance_nm = NauticalMiles::from(length);
 println!("Istanbul-Washington distance: {:?}", distance_nm);
+
+let azimuth_degrees = Degrees::from(azimuth);
+println!("Istanbul-Washington initial azimuth: {:?}", azimuth_degrees.0);
 
 let end_azimuth_degrees = Degrees::from(end_azimuth.opposite());
 println!("Washington-Istanbul initial azimuth: {:?}", end_azimuth_degrees.0);
@@ -123,15 +122,15 @@ let istanbul = LatLong::new(Degrees(42.0), Degrees(29.0));
 let washington = LatLong::new(Degrees(39.0), Degrees(-77.0));
 let g1 = GeodesicSegment::from(&istanbul, &washington);
 
-let azimuth_degrees = Degrees::from(g1.azimuth(Metres(0.0)));
-println!("Istanbul-Washington initial azimuth: {:?}", azimuth_degrees.0);
-
 let distance_nm = NauticalMiles::from(g1.length());
 println!("Istanbul-Washington distance: {:?}", distance_nm);
 
+let azimuth_degrees = Degrees::from(g1.azimuth(Metres(0.0)));
+println!("Istanbul-Washington initial azimuth: {:?}", azimuth_degrees.0);
+
 let reyjavik = LatLong::new(Degrees(64.0), Degrees(-22.0));
 
-// Calculate geodesic along track and across track distances to 1mm precision.
+// Calculate geodesic segment along track and across track distances to 1mm precision.
 let (atd, xtd, iterations) = g1.calculate_atd_and_xtd(&reyjavik, Metres(1e-3));
 assert!(is_within_tolerance(3928788.572, atd.0, 1e-3));
 assert!(is_within_tolerance(-1010585.9988368, xtd.0, 1e-3));
