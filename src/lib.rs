@@ -32,7 +32,7 @@
 //!
 //! <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/3/3e/WGS84_mean_Earth_radius.svg/800px-WGS84_mean_Earth_radius.svg.png" width="400">
 //!
-//! *Figure 1 The WGS-84 Ellipsoid (not to scale)  
+//! *Figure 1 The WGS-84 Ellipsoid (not to scale)
 //! [Cmglee](https://commons.wikimedia.org/wiki/User:Cmglee), [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0), via Wikimedia Commons*
 //!
 //! [WGS-84](https://www.icao.int/NACC/Documents/Meetings/2014/ECARAIM/REF08-Doc9674.pdf)
@@ -109,7 +109,7 @@ pub use icao_units::si::Metres;
 pub use unit_sphere::LatLong;
 
 use angle_sc::trig;
-use lazy_static::lazy_static;
+use once_cell::sync::Lazy;
 use unit_sphere::{great_circle, Vector3d};
 
 /// The parameters of an `Ellipsoid`.
@@ -275,14 +275,8 @@ impl Ellipsoid {
     }
 }
 
-lazy_static! {
-    /// A static instance of the WGS-84 `Ellipsoid`.
-    ///
-    /// Note: uses [lazy_static](https://crates.io/crates/lazy_static)
-    /// instead of [std::sync::OnceLock](https://doc.rust-lang.org/std/sync/struct.OnceLock.html)
-    /// because this crate is `no_std`.
-    pub static ref WGS84_ELLIPSOID: Ellipsoid = Ellipsoid::wgs84();
-}
+/// A static instance of the WGS-84 `Ellipsoid`.
+pub static WGS84_ELLIPSOID: Lazy<Ellipsoid> = Lazy::new(Ellipsoid::wgs84);
 
 /// Calculate the azimuths and geodesic length (in metres) between a pair
 /// of positions on the ellipsoid.
