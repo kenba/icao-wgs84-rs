@@ -351,7 +351,7 @@ mod tests {
     #[test]
     fn test_sin_cos_series_c1() {
         let eps45 = calculate_sq_2nd_eccentricity(wgs84::F) / 2.0;
-        let c1 = evaluate_coeffs_c1( eps45);
+        let c1 = evaluate_coeffs_c1(eps45);
 
         let angle = Angle::from(Radians(0.1 * std::f64::consts::PI));
         let sin_cos_c1 = sin_cos_series(&c1, angle);

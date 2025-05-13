@@ -80,9 +80,9 @@ pub fn calculate_geodesic_intersection_distances(
         iterations += 1;
 
         let c = if use_antipodal_intersection {
-            vector::intersection::calculate_intersection(&pole2, &pole1)
+            vector::intersection::calculate_intersection(&pole2, &pole1, vector::MIN_SQ_NORM)
         } else {
-            vector::intersection::calculate_intersection(&pole1, &pole2)
+            vector::intersection::calculate_intersection(&pole1, &pole2, vector::MIN_SQ_NORM)
         };
         match c {
             Some(c) => {
@@ -117,9 +117,6 @@ pub fn calculate_sphere_intersection_distances(
     g2: &GeodesicSegment,
     precision: Radians,
 ) -> (Radians, Radians, u32) {
-    // The minimum sin angle between coincident geodesics
-    const MIN_SIN_ANGLE: f64 = 16384.0 * f64::EPSILON;
-
     // The Geodesics MUST be on the same `Ellipsoid`
     assert!(g1.ellipsoid() == g2.ellipsoid());
 
@@ -152,10 +149,10 @@ pub fn calculate_sphere_intersection_distances(
 
         // Determine whether the geodesics are coincident
         let delta_azimuth1_3 = g1.azi() - g3_azi;
-        if delta_azimuth1_3.sin().abs().0 < MIN_SIN_ANGLE {
+        if delta_azimuth1_3.sin().abs().0 < vector::MIN_SIN_ANGLE {
             // The geodesics may be coincident
             let delta_azimuth2_3 = g2.azi() - g3_end_azi;
-            if delta_azimuth2_3.sin().abs().0 < MIN_SIN_ANGLE {
+            if delta_azimuth2_3.sin().abs().0 < vector::MIN_SIN_ANGLE {
                 // The geodesics are coincident
                 let distances = vector::intersection::calculate_coincident_arc_distances(
                     atd,
@@ -177,40 +174,41 @@ pub fn calculate_sphere_intersection_distances(
             let (a2mid, pole2mid) = g2.arc_point_and_pole(half_arc_length2);
 
             // Determine whether the great circles on the unit sphere are coincident
-            vector::intersection::calculate_intersection(&pole1mid, &pole2mid).map_or_else(
-                || {
-                    // This code should never be executed.
-                    let distances = vector::intersection::calculate_coincident_arc_distances(
-                        atd,
-                        reciprocal,
-                        g1.arc_length(),
-                        g2.arc_length(),
-                    );
-                    (distances.0, distances.1, 0)
-                },
-                |c| {
-                    // find the closest intersection
-                    let centroid = 0.5 * (a1mid + a2mid);
-                    let use_antipodal_intersection =
-                        vector::intersection::use_antipodal_point(&c, &centroid);
-                    let c = if use_antipodal_intersection { -c } else { c };
-                    // calculate distances along the arcs to the closest intersection
-                    let (mut distance1, mut distance2) =
-                        vector::intersection::calculate_intersection_distances(
-                            &a1mid, &pole1mid, &a2mid, &pole2mid, &c,
+            vector::intersection::calculate_intersection(&pole1mid, &pole2mid, vector::MIN_SQ_NORM)
+                .map_or_else(
+                    || {
+                        // This code should never be executed.
+                        let distances = vector::intersection::calculate_coincident_arc_distances(
+                            atd,
+                            reciprocal,
+                            g1.arc_length(),
+                            g2.arc_length(),
                         );
-                    // calculate distances from arc start
-                    distance1 += half_arc_length1;
-                    distance2 += half_arc_length2;
-                    calculate_geodesic_intersection_distances(
-                        g1,
-                        g2,
-                        sq_precision,
-                        use_antipodal_intersection,
-                        (distance1, distance2),
-                    )
-                },
-            )
+                        (distances.0, distances.1, 0)
+                    },
+                    |c| {
+                        // find the closest intersection
+                        let centroid = 0.5 * (a1mid + a2mid);
+                        let use_antipodal_intersection =
+                            vector::intersection::use_antipodal_point(&c, &centroid);
+                        let c = if use_antipodal_intersection { -c } else { c };
+                        // calculate distances along the arcs to the closest intersection
+                        let (mut distance1, mut distance2) =
+                            vector::intersection::calculate_intersection_distances(
+                                &a1mid, &pole1mid, &a2mid, &pole2mid, &c,
+                            );
+                        // calculate distances from arc start
+                        distance1 += half_arc_length1;
+                        distance2 += half_arc_length2;
+                        calculate_geodesic_intersection_distances(
+                            g1,
+                            g2,
+                            sq_precision,
+                            use_antipodal_intersection,
+                            (distance1, distance2),
+                        )
+                    },
+                )
         }
     }
 }
