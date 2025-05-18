@@ -915,7 +915,6 @@ impl From<(&LatLong, Angle, Radians)> for GeodesicSegment<'_> {
     /// * `a` - the start position in geodetic coordinates.
     /// * `azimuth` - the azimuth at the start position.
     /// * `arc_length` - the great circle arc length on the auxiliary sphere in radians.
-    #[must_use]
     fn from(params: (&LatLong, Angle, Radians)) -> Self {
         GeodesicSegment::from_lat_lon_azi_arc_length(params.0, params.1, params.2, &WGS84_ELLIPSOID)
     }
@@ -928,7 +927,6 @@ impl From<(&LatLong, Angle, Metres)> for GeodesicSegment<'_> {
     /// * `a` - the start position in geodetic coordinates.
     /// * `azimuth` - the azimuth at the start position.
     /// * `length` - the length on the `Ellipsoid` in metres.
-    #[must_use]
     fn from(params: (&LatLong, Angle, Metres)) -> Self {
         GeodesicSegment::from_lat_lon_azi_length(params.0, params.1, params.2, &WGS84_ELLIPSOID)
     }
@@ -939,7 +937,6 @@ impl From<(&LatLong, &LatLong)> for GeodesicSegment<'_> {
     /// `Ellipsoid`, the "indirect" method.
     /// @pre |lat| <= 90.0 degrees.
     /// * `a`, `b` - the start and finish positions in geodetic coordinates.
-    #[must_use]
     fn from(params: (&LatLong, &LatLong)) -> Self {
         Self::between_positions(
             params.0,
