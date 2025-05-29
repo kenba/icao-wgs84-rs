@@ -609,7 +609,9 @@ mod tests {
 
     #[test]
     fn test_calculate_end_azimuth() {
+        let angle_90 = Angle::from(Degrees(90.0));
         let angle_50 = Angle::from(Degrees(50.0));
+        let angle_45 = Angle::from(Degrees(45.0));
         let angle_20 = Angle::from(Degrees(20.0));
 
         let result: Angle = calculate_end_azimuth(angle_20, angle_50, angle_20);
@@ -619,8 +621,18 @@ mod tests {
             16.0 * f64::EPSILON
         ));
 
+        let result: Angle = calculate_end_azimuth(angle_50, angle_20, angle_20);
+        assert!(is_within_tolerance(
+            13.530064432438888,
+            Degrees::from(result).0,
+            f64::EPSILON
+        ));
+
         let result: Angle = calculate_end_azimuth(-angle_50, angle_50, angle_20);
         assert_eq!(20.0, Degrees::from(result).0);
+
+        let result: Angle = calculate_end_azimuth(angle_45, angle_45, angle_90);
+        assert_eq!(90.0, Degrees::from(result).0);
     }
 
     #[test]

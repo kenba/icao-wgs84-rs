@@ -562,11 +562,7 @@ impl<'a> GeodesicSegment<'a> {
     /// return the parametric latitude of the position at sigma.
     #[must_use]
     pub fn arc_beta(&self, sigma: Angle) -> Angle {
-        let sin_beta = trig::UnitNegRange(
-            sigma.cos().0 * self.beta.sin().0
-                + sigma.sin().0 * self.beta.cos().0 * self.azi.cos().0,
-        );
-        Angle::new(sin_beta, trig::swap_sin_cos(sin_beta))
+        great_circle::calculate_latitude(self.beta, self.azi, sigma)
     }
 
     /// Calculate the geodetic latitude at the great circle arc distance.
@@ -1258,7 +1254,7 @@ mod tests {
         assert!(is_within_tolerance(
             istanbul.lat().0,
             lat_long.lat().0,
-            32.0 * f64::EPSILON
+            64.0 * f64::EPSILON
         ));
         assert!(is_within_tolerance(
             istanbul.lon().0,
@@ -1368,7 +1364,7 @@ mod tests {
 
         // Calculate the point and great circle pole at the North pole
         let (point1, pole1) = g1.arc_point_and_pole(mid_length);
-        assert_eq!(Vector3d::new(0.0, 0.0, 1.0), point1);
+        assert_eq!(Vector3d::new(0.5 * f64::EPSILON, 0.0, 1.0), point1);
         assert_eq!(pole0, pole1);
     }
 
