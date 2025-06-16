@@ -1007,13 +1007,16 @@ pub fn calculate_intersection_point(
     g2: &GeodesicSegment,
     precision: Metres,
 ) -> Option<LatLong> {
-    let (distance1, distance2) = calculate_intersection_distances(g1, g2, precision);
+    let precision = Radians(precision.0 / g1.ellipsoid().a().0);
+    let (distance1, distance2, _) =
+        intersection::calculate_sphere_intersection_distances(g1, g2, precision);
 
     // Determine whether both distances are within both `GeodesicSegment`s.
-    if unit_sphere::vector::intersection::is_within(distance1.0, g1.arc_length().0)
-        && unit_sphere::vector::intersection::is_within(distance2.0, g2.arc_length().0)
+    if unit_sphere::vector::intersection::is_alongside(distance1, g1.arc_length(), precision)
+        && unit_sphere::vector::intersection::is_alongside(distance2, g2.arc_length(), precision)
     {
-        Some(g1.arc_lat_long(distance1, Angle::from(distance1)))
+        let distance = distance1.clamp(g1.arc_length());
+        Some(g1.arc_lat_long(distance, Angle::from(distance)))
     } else {
         None
     }
