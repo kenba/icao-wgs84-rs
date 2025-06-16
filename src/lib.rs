@@ -829,6 +829,75 @@ impl<'a> GeodesicSegment<'a> {
         }
     }
 
+    /// Calculate the shortest geodesic distance of point from the `GeodesicSegment`.
+    ///
+    /// * `position` - the point.
+    /// * `precision` the required precision in `Radians`
+    ///
+    /// returns the shortest distance of the point from the `GeodesicSegment` in Metres.
+    #[allow(clippy::similar_names)]
+    #[must_use]
+    pub fn calculate_sphere_shortest_distance(
+        &self,
+        position: &LatLong,
+        precision: Radians,
+    ) -> Metres {
+        // calculate the parametric latitude and longitude of the position
+        let beta = self
+            .ellipsoid
+            .calculate_parametric_latitude(Angle::from(position.lat()));
+        let lon = Angle::from(position.lon());
+        let (atd, xtd, _) = self.calculate_sphere_atd_and_xtd(beta, lon, precision);
+
+        // if the position is beside the geodesic segment
+        if unit_sphere::vector::intersection::is_alongside(atd, self.arc_length, precision) {
+            if xtd.abs() < precision {
+                Metres(0.0)
+            } else {
+                // convert cross track distance to Metres
+                let atd_angle = Angle::from(atd.clamp(self.arc_length));
+                let beta = self.arc_beta(atd_angle);
+                let alpha = self.arc_azimuth(atd_angle).quarter_turn_ccw();
+                let distance =
+                    geodesic::convert_radians_to_metres(beta, alpha, xtd, self.ellipsoid);
+                // return the abs cross track distance in Metres
+                Metres(libm::fabs(distance.0))
+            }
+        } else {
+            // the position is closest to one of the geodesic segment ends
+            let point = unit_sphere::vector::to_point(beta, lon);
+            let sq_a = unit_sphere::vector::sq_distance(&self.a(), &point);
+            let sq_b = unit_sphere::vector::sq_distance(&self.arc_point(self.arc_length()), &point);
+
+            if sq_b < sq_a {
+                // calculate the geodesic distance from the end of the segment
+                let arc_length = self.arc_length();
+                let sigma = Angle::from(arc_length);
+                let arc_beta = self.arc_beta(sigma);
+                let delta_long = lon - self.arc_longitude(arc_length, sigma);
+                let (alpha, distance, _, _) = geodesic::aux_sphere_azimuths_length(
+                    arc_beta,
+                    beta,
+                    delta_long,
+                    precision,
+                    self.ellipsoid,
+                );
+                geodesic::convert_radians_to_metres(arc_beta, alpha, distance, self.ellipsoid)
+            } else {
+                // calculate the geodesic distance from the start of the segment
+                let delta_long = lon - self.lon;
+                let (alpha, distance, _, _) = geodesic::aux_sphere_azimuths_length(
+                    self.beta,
+                    beta,
+                    delta_long,
+                    precision,
+                    self.ellipsoid,
+                );
+                geodesic::convert_radians_to_metres(self.beta, alpha, distance, self.ellipsoid)
+            }
+        }
+    }
+
     /// Calculate along and across track distances to a position from a geodesic.
     /// * `position` the position as a `LatLong`
     /// * `precision` the required precision
@@ -901,6 +970,20 @@ impl<'a> GeodesicSegment<'a> {
             geodesic::convert_radians_to_metres(beta, alpha, xtd, self.ellipsoid),
             iterations,
         )
+    }
+
+    /// Calculate the shortest geodesic distance of point from the `GeodesicSegment`.
+    ///
+    /// * `position` - the point.
+    /// * `precision` the required precision in `Metres`
+    ///
+    /// returns the shortest distance of the point from the `GeodesicSegment` in Metres.
+    #[allow(clippy::similar_names)]
+    #[must_use]
+    pub fn shortest_distance(&self, position: &LatLong, precision: Metres) -> Metres {
+        // convert precision to Radians
+        let precision = Radians(precision.0 / self.ellipsoid.a().0);
+        self.calculate_sphere_shortest_distance(position, precision)
     }
 }
 
@@ -1282,10 +1365,14 @@ mod tests {
             16.0 * f64::EPSILON
         ));
 
-        let (atd, xtd, iterations) = g1.calculate_atd_and_xtd(&istanbul, Metres(1e-3));
+        let precision = Metres(1e-3);
+        let (atd, xtd, iterations) = g1.calculate_atd_and_xtd(&istanbul, precision);
         println!("calculate_atd_and_xtd iterations: {:?}", iterations);
         assert_eq!(0.0, atd.0);
         assert_eq!(0.0, xtd.0);
+
+        let distance = g1.shortest_distance(&istanbul, precision);
+        assert_eq!(0.0, distance.0);
 
         // test end position
         let arc_length = g1.arc_length();
@@ -1340,16 +1427,20 @@ mod tests {
             128.0 * f64::EPSILON
         ));
 
-        let precision = Radians(1e-3 / WGS84_ELLIPSOID.a().0);
-        let (atd, xtd, iterations) = g1.calculate_sphere_atd_and_xtd(mid_beta, mid_lon, precision);
+        let precision_r = Radians(1e-3 / WGS84_ELLIPSOID.a().0);
+        let (atd, xtd, iterations) =
+            g1.calculate_sphere_atd_and_xtd(mid_beta, mid_lon, precision_r);
         assert!(is_within_tolerance(mid_length.0, atd.0, f64::EPSILON));
         assert_eq!(0.0, xtd.0);
         println!("calculate_sphere_atd_and_xtd iterations: {:?}", iterations);
 
-        let (atd, xtd, iterations) = g1.calculate_atd_and_xtd(&mid_position, Metres(1e-3));
+        let (atd, xtd, iterations) = g1.calculate_atd_and_xtd(&mid_position, precision);
         assert!(is_within_tolerance(half_length.0, atd.0, 1e-3));
         assert!(libm::fabs(xtd.0) < 1e-3);
         println!("calculate_atd_and_xtd iterations: {:?}", iterations);
+
+        let distance = g1.shortest_distance(&mid_position, precision);
+        assert_eq!(0.0, distance.0);
     }
 
     #[test]
@@ -1410,9 +1501,11 @@ mod tests {
         let reyjavik = LatLong::new(Degrees(64.0), Degrees(-22.0));
 
         // Calculate geodesic along track and across track distances to 1mm precision.
-        let (atd, xtd, iterations) = g1.calculate_atd_and_xtd(&reyjavik, Metres(1e-3));
-        assert!(is_within_tolerance(3928788.572, atd.0, 1e-3));
-        assert!(is_within_tolerance(-1010585.9988368, xtd.0, 1e-3));
+        let precision = Metres(1e-3);
+
+        let (atd, xtd, iterations) = g1.calculate_atd_and_xtd(&reyjavik, precision);
+        assert!(is_within_tolerance(3928788.572, atd.0, precision.0));
+        assert!(is_within_tolerance(-1010585.9988368, xtd.0, precision.0));
         println!("calculate_atd_and_xtd iterations: {:?}", iterations);
 
         // Karney's latitude and longitude from Final result at:
@@ -1442,14 +1535,46 @@ mod tests {
 
         // opposite geodesic
         let g1 = GeodesicSegment::from((&washington, &istanbul));
-        let (atd, xtd, iterations) = g1.calculate_atd_and_xtd(&reyjavik, Metres(1e-3));
+        let (atd, xtd, iterations) = g1.calculate_atd_and_xtd(&reyjavik, precision);
         assert!(is_within_tolerance(
             g1.length().0 - 3928788.572,
             atd.0,
-            1e-3
+            precision.0
         ));
         assert!(is_within_tolerance(1010585.9988368, xtd.0, 1e-3));
         println!("calculate_atd_and_xtd iterations: {:?}", iterations);
+
+        let reyjavik = LatLong::new(Degrees(64.0), Degrees(-22.0));
+        let distance = g1.shortest_distance(&reyjavik, precision);
+        assert!(is_within_tolerance(
+            1010585.998836817,
+            distance.0,
+            precision.0
+        ));
+
+        let accra = LatLong::new(Degrees(6.0), Degrees(0.0));
+        let distance = g1.shortest_distance(&accra, precision);
+        assert!(is_within_tolerance(
+            4891211.398445355,
+            distance.0,
+            precision.0
+        ));
+
+        let chicago = LatLong::new(Degrees(42.0), Degrees(-88.0));
+        let distance = g1.shortest_distance(&chicago, precision);
+        assert!(is_within_tolerance(
+            989277.1859906457,
+            distance.0,
+            precision.0
+        ));
+
+        let singapore = LatLong::new(Degrees(1.0), Degrees(104.0));
+        let distance = g1.shortest_distance(&singapore, precision);
+        assert!(is_within_tolerance(
+            8699538.22763653,
+            distance.0,
+            precision.0
+        ));
     }
 
     #[test]
@@ -1463,6 +1588,10 @@ mod tests {
 
         let g1 = GeodesicSegment::from((&istanbul, &washington));
         let g2 = GeodesicSegment::from((&reyjavik, &accra));
+
+        let (d1, d2) = calculate_intersection_distances(&g1, &g2, Metres(1e-3));
+        assert!(is_within_tolerance(0.5423772210673643, d1.0, 1e-6));
+        assert!(is_within_tolerance(0.17504915893226164, d2.0, 1e-6));
 
         let result = calculate_intersection_point(&g1, &g2, Metres(1e-3));
         let lat_lon = result.unwrap();
