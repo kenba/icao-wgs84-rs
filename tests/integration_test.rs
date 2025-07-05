@@ -26,32 +26,37 @@ use icao_wgs84::{geodesic, Metres, WGS84_ELLIPSOID};
 use itertools::multizip;
 use polars::prelude::*;
 use std::env;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use unit_sphere::{great_circle, LatLong};
 
 // The location of the file on sourceforge.net
 // const FILEPATH: &str = "https://sourceforge.net/projects/geographiclib/files/testdata/GeodTest.dat.gz/download";
 
+fn read_geodesic_data_file(file_path: PathBuf) -> Result<DataFrame, Box<dyn std::error::Error>> {
+    let lf = LazyCsvReader::new(file_path)
+        .with_has_header(false)
+        .with_separator(b' ')
+        .finish()?
+        .collect()?;
+
+    Ok(lf)
+}
+
 #[test]
 #[ignore]
 fn test_geodesic_examples() -> Result<(), Box<dyn std::error::Error>> {
     // Read GEODTEST_DIR/GeodTest.dat file and run tests
-    let filename = "GeodTest.dat";
+    let filename = "GeodTest.dat.gz";
     let dir_key = "GEODTEST_DIR";
 
     let p = env::var(dir_key).expect("Environment variable not found: GEODTEST_DIR");
     let path = Path::new(&p);
     let file_path = path.join(filename);
 
-    let df = CsvReadOptions::default()
-        .with_has_header(false)
-        .with_parse_options(CsvParseOptions::default().with_separator(b' '))
-        .try_into_reader_with_file_path(Some(file_path.into()))?
-        .finish()?;
+    let df = read_geodesic_data_file(file_path)?;
+    // println!("{df}");
 
     let lines = df.height();
-
-    // println!("{:?}", df.head(None));
 
     // Use multizip to access DataFrame by rows
     let objects = df.take_columns();
