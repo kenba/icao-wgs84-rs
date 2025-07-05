@@ -831,7 +831,8 @@ impl<'a> GeodesicSegment<'a> {
 
     /// Calculate the shortest geodesic distance of point from the `GeodesicSegment`.
     ///
-    /// * `position` - the point.
+    /// * `beta` - the parametric latitude of the point.
+    /// * `lon` - the longitude of the point.
     /// * `precision` the required precision in `Radians`
     ///
     /// returns the shortest distance of the point from the `GeodesicSegment` in Metres.
@@ -839,14 +840,10 @@ impl<'a> GeodesicSegment<'a> {
     #[must_use]
     pub fn calculate_sphere_shortest_distance(
         &self,
-        position: &LatLong,
+        beta: Angle,
+        lon: Angle,
         precision: Radians,
     ) -> Metres {
-        // calculate the parametric latitude and longitude of the position
-        let beta = self
-            .ellipsoid
-            .calculate_parametric_latitude(Angle::from(position.lat()));
-        let lon = Angle::from(position.lon());
         let (atd, xtd, _) = self.calculate_sphere_atd_and_xtd(beta, lon, precision);
 
         // if the position is beside the geodesic segment
@@ -855,9 +852,9 @@ impl<'a> GeodesicSegment<'a> {
                 Metres(0.0)
             } else {
                 // convert cross track distance to Metres
-                let atd_angle = Angle::from(atd.clamp(self.arc_length));
-                let beta = self.arc_beta(atd_angle);
-                let alpha = self.arc_azimuth(atd_angle).quarter_turn_ccw();
+                let sigma = Angle::from(atd.clamp(self.arc_length));
+                let beta = self.arc_beta(sigma);
+                let alpha = self.arc_azimuth(sigma).quarter_turn_ccw();
                 let distance =
                     geodesic::convert_radians_to_metres(beta, alpha, xtd, self.ellipsoid);
                 // return the abs cross track distance in Metres
@@ -981,9 +978,14 @@ impl<'a> GeodesicSegment<'a> {
     #[allow(clippy::similar_names)]
     #[must_use]
     pub fn shortest_distance(&self, position: &LatLong, precision: Metres) -> Metres {
+        // calculate the parametric latitude and longitude of the position
+        let beta = self
+            .ellipsoid
+            .calculate_parametric_latitude(Angle::from(position.lat()));
+        let lon = Angle::from(position.lon());
         // convert precision to Radians
         let precision = Radians(precision.0 / self.ellipsoid.a().0);
-        self.calculate_sphere_shortest_distance(position, precision)
+        self.calculate_sphere_shortest_distance(beta, lon, precision)
     }
 }
 
