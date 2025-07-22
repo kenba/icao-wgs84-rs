@@ -1047,7 +1047,7 @@ pub fn calculate_intersection_distances(
     precision: Metres,
 ) -> (Radians, Radians) {
     let precision = Radians(precision.0 / g1.ellipsoid().a().0);
-    let (distance1, distance2, _) =
+    let (distance1, distance2, _, _) =
         intersection::calculate_sphere_intersection_distances(g1, g2, precision);
     (distance1, distance2)
 }
@@ -1093,7 +1093,7 @@ pub fn calculate_intersection_point(
     precision: Metres,
 ) -> Option<LatLong> {
     let precision = Radians(precision.0 / g1.ellipsoid().a().0);
-    let (distance1, distance2, _) =
+    let (distance1, distance2, _, _) =
         intersection::calculate_sphere_intersection_distances(g1, g2, precision);
 
     // Determine whether both distances are within both `GeodesicSegment`s.
