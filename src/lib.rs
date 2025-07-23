@@ -760,6 +760,21 @@ impl<'a> GeodesicSegment<'a> {
         }
     }
 
+    /// The reverse `GeodesicSegment` from end to start.
+    ///
+    /// returns the reverse `GeodesicSegment` from end to start.
+    #[must_use]
+    pub fn reverse(&self) -> GeodesicSegment {
+        let sigma = Angle::from(self.arc_length);
+        GeodesicSegment::new(
+            self.arc_beta(sigma),
+            self.arc_longitude(self.arc_length, sigma),
+            self.arc_azimuth(sigma).opposite(),
+            self.arc_length,
+            self.ellipsoid,
+        )
+    }
+
     /// Calculate along and across track distances to a position from a geodesic segment.
     /// * `beta` the latitude of the position
     /// * `lon` the longitude of the position
@@ -1443,6 +1458,29 @@ mod tests {
 
         let distance = g1.shortest_distance(&mid_position, precision);
         assert_eq!(0.0, distance.0);
+
+        let g2 = g1.reverse();
+        assert_eq!(g1.arc_length(), g2.arc_length());
+        assert_eq!(g1.length(), g2.length());
+        assert_eq!(
+            washington.lat().0,
+            Degrees::from(g2.arc_latitude(Angle::default())).0
+        );
+        assert_eq!(
+            washington.lon().0,
+            Degrees::from(g2.arc_longitude(Radians(0.0), Angle::default())).0
+        );
+        let sigma = Angle::from(g2.arc_length());
+        assert!(is_within_tolerance(
+            istanbul.lat().0,
+            Degrees::from(g2.arc_latitude(sigma)).0,
+            64.0 * f64::EPSILON
+        ));
+        assert!(is_within_tolerance(
+            istanbul.lon().0,
+            Degrees::from(g2.arc_longitude(g2.arc_length(), sigma)).0,
+            64.0 * f64::EPSILON
+        ));
     }
 
     #[test]
