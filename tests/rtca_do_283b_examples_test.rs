@@ -55,7 +55,9 @@ fn calculate_geodesic_inverse_values(
 #[test]
 #[ignore]
 fn test_rtca_do_283b_examples() -> Result<(), Box<dyn std::error::Error>> {
-    let lf = LazyCsvReader::new(FILENAME).finish()?.collect()?;
+    let lf = LazyCsvReader::new(PlPath::new(FILENAME))
+        .finish()?
+        .collect()?;
     // println!("{lf}");
 
     let length = lf.height();

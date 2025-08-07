@@ -25,7 +25,7 @@ use angle_sc::{Angle, Degrees, Radians};
 use icao_wgs84::{geodesic, Metres, WGS84_ELLIPSOID};
 use polars::prelude::*;
 use std::env;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::time::Instant;
 
 use unit_sphere::{great_circle, LatLong};
@@ -44,7 +44,7 @@ use unit_sphere::{great_circle, LatLong};
 //  end_by_vertices_df = tests_df[450000:500000]
 
 /// Read the geodesic data file at file_path
-fn read_geodesic_data_file(file_path: PathBuf) -> Result<DataFrame, Box<dyn std::error::Error>> {
+fn read_geodesic_data_file(file_path: &str) -> Result<DataFrame, Box<dyn std::error::Error>> {
     // The Schema of the geodesic data file
     let mut schema = Schema::with_capacity(10);
     schema.insert("lat1".into(), DataType::Float64);
@@ -59,7 +59,7 @@ fn read_geodesic_data_file(file_path: PathBuf) -> Result<DataFrame, Box<dyn std:
     schema.insert("s12".into(), DataType::Float64);
 
     // Read all of the columns of the geodesic data file
-    let lf = LazyCsvReader::new(file_path)
+    let lf = LazyCsvReader::new(PlPath::new(file_path))
         .with_has_header(false)
         .with_separator(b' ')
         .with_schema(Some(Arc::new(schema)))
@@ -105,7 +105,7 @@ fn test_geodesic_examples() -> Result<(), Box<dyn std::error::Error>> {
     let path = Path::new(&p);
     let file_path = path.join(filename);
 
-    let lf = read_geodesic_data_file(file_path)?;
+    let lf = read_geodesic_data_file(file_path.to_str().expect("Bad file_path"))?;
     // println!("{lf}");
 
     let start_time = Instant::now();
