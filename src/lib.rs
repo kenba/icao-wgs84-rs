@@ -764,7 +764,7 @@ impl<'a> GeodesicSegment<'a> {
     ///
     /// returns the reverse `GeodesicSegment` from end to start.
     #[must_use]
-    pub fn reverse(&self) -> GeodesicSegment {
+    pub fn reverse(&self) -> GeodesicSegment<'_> {
         let sigma = Angle::from(self.arc_length);
         GeodesicSegment::new(
             self.arc_beta(sigma),
