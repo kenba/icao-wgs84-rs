@@ -10,7 +10,7 @@ readme = "README.md"
 keywords = ["geometry", "ellipsoid", "wgs84", "icao", "navigation"]
 categories = ["aerospace", "mathematics", "no-std", "science"]
 license = "MIT"
-edition = "2021"
+edition = "2024"
 
 [dependencies]
 angle-sc = "1.1"
