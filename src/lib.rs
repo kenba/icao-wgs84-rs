@@ -709,7 +709,7 @@ impl<'a> GeodesicSegment<'a> {
     /// returns the mid point vector of the `GeodesicSegment`.
     #[must_use]
     pub fn mid_point(&self) -> Vector3d {
-        self.arc_point(self.metres_to_radians(Metres(0.5 * self.length().0)))
+        self.arc_point(self.metres_to_radians(self.length().half()))
     }
 
     /// Calculate the geodesic and pole at the great circle arc distance.
@@ -876,12 +876,20 @@ impl<'a> GeodesicSegment<'a> {
                 Metres(libm::fabs(distance.0))
             }
         } else {
-            // the position is closest to one of the geodesic segment ends
-            let point = unit_sphere::vector::to_point(beta, lon);
-            let sq_a = unit_sphere::vector::sq_distance(&self.a(), &point);
-            let sq_b = unit_sphere::vector::sq_distance(&self.arc_point(self.arc_length()), &point);
-
-            if sq_b < sq_a {
+            // adjust atd to measure the distance from the centre of the Arc to the point
+            let atd_centre = atd - self.arc_length.half();
+            if atd_centre.0.is_sign_negative() {
+                // calculate the geodesic distance from the start of the segment
+                let delta_long = lon - self.lon;
+                let (alpha, distance, _, _) = geodesic::aux_sphere_azimuths_length(
+                    self.beta,
+                    beta,
+                    delta_long,
+                    precision,
+                    self.ellipsoid,
+                );
+                geodesic::convert_radians_to_metres(self.beta, alpha, distance, self.ellipsoid)
+            } else {
                 // calculate the geodesic distance from the end of the segment
                 let arc_length = self.arc_length();
                 let sigma = Angle::from(arc_length);
@@ -895,17 +903,6 @@ impl<'a> GeodesicSegment<'a> {
                     self.ellipsoid,
                 );
                 geodesic::convert_radians_to_metres(arc_beta, alpha, distance, self.ellipsoid)
-            } else {
-                // calculate the geodesic distance from the start of the segment
-                let delta_long = lon - self.lon;
-                let (alpha, distance, _, _) = geodesic::aux_sphere_azimuths_length(
-                    self.beta,
-                    beta,
-                    delta_long,
-                    precision,
-                    self.ellipsoid,
-                );
-                geodesic::convert_radians_to_metres(self.beta, alpha, distance, self.ellipsoid)
             }
         }
     }
@@ -1411,7 +1408,7 @@ mod tests {
         ));
 
         // test mid position
-        let half_length = Metres(0.5 * length.0);
+        let half_length = length.half();
         let mid_position = g1.lat_long(half_length);
 
         assert!(is_within_tolerance(
@@ -1492,7 +1489,7 @@ mod tests {
         let pole0 = g1.arc_pole(Radians(0.0));
 
         // Calculate the azimuth at the North pole
-        let mid_length = Radians(0.5 * g1.arc_length().0);
+        let mid_length = g1.arc_length().half();
         let azimuth = Degrees::from(g1.arc_azimuth(Angle::from(mid_length)));
         assert_eq!(180.0, azimuth.0);
 
