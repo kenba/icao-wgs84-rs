@@ -135,7 +135,7 @@ fn test_geodesic_examples() -> Result<(), Box<dyn std::error::Error>> {
             let end_azi = Degrees::from(end_azi).0;
 
             // Compare start azimuths
-            let delta_azimuth = libm::fabs(azi1 - azi);
+            let delta_azimuth = (azi1 - azi).abs();
             // reduce tolerance for entries running between or close to vertices
             let azimuth_tolerance = if index <= 400000 { 5.331e-5 } else { 2.0e-2 };
             if azimuth_tolerance < delta_azimuth {
@@ -146,7 +146,7 @@ fn test_geodesic_examples() -> Result<(), Box<dyn std::error::Error>> {
             }
 
             // Compare end_azimuths
-            let delta_azimuth = libm::fabs(azi2 - end_azi);
+            let delta_azimuth = (azi2 - end_azi).abs();
             if azimuth_tolerance < delta_azimuth {
                 panic!(
                     "end azimuth, line: {:?} delta: {:?} azimuth: {:?} delta_long: {:?} ",
@@ -155,7 +155,7 @@ fn test_geodesic_examples() -> Result<(), Box<dyn std::error::Error>> {
             }
 
             // Compare geodesic distances
-            let delta_length_m = libm::fabs(d_metres - distance_m.0);
+            let delta_length_m = (d_metres - distance_m.0).abs();
             // if a short geodesic, test delta length, not delta length ratio
             if index >= 150000 && index < 200000 {
                 if 3.5e-9 < delta_length_m {

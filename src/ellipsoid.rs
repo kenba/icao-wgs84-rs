@@ -102,7 +102,7 @@ pub fn calculate_epsilon(clairaut: trig::UnitNegRange, ep_2: f64) -> f64 {
     // Clairaut's constant is sin alpha0; sq_cos_alpha0 is 1 - clairaut^2
     let sq_cos_alpha0 = (1.0 - clairaut.0) * (1.0 + clairaut.0);
     let k2 = ep_2 * sq_cos_alpha0; // square of Karney equation 9
-    let sqrt_k2_1 = libm::sqrt(1.0 + k2) + 1.0;
+    let sqrt_k2_1 = (1.0 + k2).sqrt() + 1.0;
     k2 / (sqrt_k2_1 * sqrt_k2_1) // Karney equation 16
 }
 

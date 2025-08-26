@@ -60,25 +60,25 @@ fn calculate_astroid(x: f64, y: f64) -> f64 {
             let mut t3 = s + r3;
             // Pick the sign on the sqrt to maximize abs(T3), to minimise loss
             // of precision due to cancellation.
-            t3 += libm::copysign(libm::sqrt(discriminant), t3);
-            let t = libm::cbrt(t3);
+            t3 += discriminant.sqrt().copysign(t3);
+            let t = t3.cbrt();
             u += t + (if t == 0.0 { 0.0 } else { r2 / t });
         } else {
             // discriminant < 0.0
             // T is complex, but the way u is defined the result is real.
-            let angle = libm::atan2(libm::sqrt(-discriminant), -(s + r3));
+            let angle = (-discriminant).sqrt().atan2(-(s + r3));
             // There are three possible cube roots.  We choose the root which
             // avoids cancellation.  Note: discriminant < 0 implies that r < 0.
-            u += 2.0 * r * libm::cos(angle / 3.0);
+            u += 2.0 * r * (angle / 3.0).cos();
         }
 
-        let v = libm::sqrt(u * u + q); // guaranteed positive
+        let v = (u * u + q).sqrt(); // guaranteed positive
         let uv = if u < 0.0 { q / (v - u) } else { u + v }; // u+v, guaranteed positive
         let w = (uv - q) / (2.0 * v); // positive?
 
         // Rearrange expression for k to avoid loss of accuracy due to subtraction.
         // Division by 0 not possible because uv > 0, w >= 0.
-        uv / (libm::sqrt(uv + w * w) + w) // guaranteed positive
+        uv / ((uv + w * w).sqrt() + w) // guaranteed positive
     }
 }
 
@@ -100,7 +100,7 @@ fn estimate_antipodal_initial_azimuth(
     ellipsoid: &Ellipsoid,
 ) -> Angle {
     const Y_TOLERANCE: f64 = 200.0 * f64::EPSILON;
-    let x_threshold: f64 = 1000.0 * libm::sqrt(f64::EPSILON);
+    let x_threshold: f64 = 1000.0 * f64::EPSILON.sqrt();
 
     // Calculate the integration parameter for geodesic
     let clairaut = beta1.cos(); // Note: assumes sin_alpha_1 = 1
@@ -154,7 +154,7 @@ fn calculate_end_azimuth(beta1: Angle, beta2: Angle, alpha1: Angle) -> Angle {
         };
         let temp3 = temp1 * temp1 + temp2;
         let temp4 = if temp3 > 0.0 {
-            libm::sqrt(temp3) / beta2.cos().0
+            temp3.sqrt() / beta2.cos().0
         } else {
             0.0
         };
@@ -288,8 +288,8 @@ fn find_azimuth_length_newtons_method(
     // The maximum number of iterations to attempt.
     const MAX_ITERS: u32 = MAX_ITER1 + f64::DIGITS + 10;
 
-    let dn1 = libm::sqrt(1.0 + ellipsoid.ep_2() * beta1.sin().0.powi(2));
-    let dn2 = libm::sqrt(1.0 + ellipsoid.ep_2() * beta2.sin().0.powi(2));
+    let dn1 = (1.0 + ellipsoid.ep_2() * beta1.sin().0.powi(2)).sqrt();
+    let dn2 = (1.0 + ellipsoid.ep_2() * beta2.sin().0.powi(2)).sqrt();
 
     let mut alpha1 = alpha;
     let mut sigma12_rad = gc_length;
@@ -347,7 +347,7 @@ fn find_azimuth_length_newtons_method(
         let v = eta.0 - domg12.0;
 
         // Test within tolerance
-        if libm::fabs(v) <= tolerance.0 {
+        if v.abs() <= tolerance.0 {
             break;
         }
 
@@ -575,7 +575,7 @@ mod tests {
     #[test]
     fn test_calculate_astroid() {
         const Y_TOLERANCE: f64 = 200.0 * f64::EPSILON;
-        let x_threshold: f64 = 1000.0 * libm::sqrt(f64::EPSILON);
+        let x_threshold: f64 = 1000.0 * f64::EPSILON.sqrt();
 
         assert_eq!(0.0, calculate_astroid(0.0, 0.0));
         assert_eq!(0.0, calculate_astroid(1.0, 0.0));
@@ -687,14 +687,24 @@ mod tests {
         // Northbound geodesic segment along a meridian
         let result = calculate_azimuths_arc_length(&latlon1, &latlon2, tolerance, &WGS84_ELLIPSOID);
         assert_eq!(0.0, Degrees::from(result.0).0);
-        assert_eq!(2.6163378712682306, (result.1).0);
+        // assert_eq!(2.61633787126823, (result.1).0);
+        assert!(is_within_tolerance(
+            2.61633787126823,
+            (result.1).0,
+            2.0 * f64::EPSILON
+        ));
         assert_eq!(0.0, Degrees::from(result.2).0);
         assert_eq!(0, result.3);
 
         // Southbound geodesic segment along a meridian
         let result = calculate_azimuths_arc_length(&latlon2, &latlon1, tolerance, &WGS84_ELLIPSOID);
         assert_eq!(180.0, Degrees::from(result.0).0);
-        assert_eq!(2.6163378712682306, (result.1).0);
+        // assert_eq!(2.61633787126823, (result.1).0);
+        assert!(is_within_tolerance(
+            2.61633787126823,
+            (result.1).0,
+            2.0 * f64::EPSILON
+        ));
         assert_eq!(180.0, Degrees::from(result.2).0);
         assert_eq!(0, result.3);
 

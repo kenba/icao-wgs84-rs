@@ -16,7 +16,6 @@ edition = "2024"
 angle-sc = "1.1"
 icao-units = "1.1"
 once_cell = "1.21"
-libm = "0.2"
 unit-sphere = "0.6"
 
 [dev-dependencies]

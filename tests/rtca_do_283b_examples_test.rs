@@ -87,8 +87,8 @@ fn test_rtca_do_283b_examples() -> Result<(), Box<dyn std::error::Error>> {
                 let azi = Degrees::from(azi).0;
                 let end_azi = Degrees::from(end_azi).0;
 
-                let delta_azimuth = libm::fabs(azi1 - azi);
-                let delta_length_m = libm::fabs(d_metres - distance_m.0);
+                let delta_azimuth = (azi1 - azi).abs();
+                let delta_length_m = (d_metres - distance_m.0).abs();
                 let delta_error_m = range_error - delta_length_m;
 
                 // push values into vectors

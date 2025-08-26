@@ -524,7 +524,7 @@ impl<'a> GeodesicSegment<'a> {
     /// returns the distance along the great circle arc in radians.
     #[must_use]
     pub fn metres_to_radians(&self, distance: Metres) -> Radians {
-        if libm::fabs(distance.0) < great_circle::MIN_VALUE {
+        if distance.0.abs() < great_circle::MIN_VALUE {
             Radians(0.0)
         } else {
             let tau12 = Radians(distance.0 / (self.ellipsoid.b().0 * self.a1));
@@ -838,7 +838,7 @@ impl<'a> GeodesicSegment<'a> {
             } else {
                 let pole = self.arc_pole(atd);
                 let sign = pole.dot(&point);
-                Radians(libm::copysign(xtd.0, sign))
+                Radians(xtd.0.copysign(sign))
             };
             (atd, xtd, iterations)
         }
@@ -873,7 +873,7 @@ impl<'a> GeodesicSegment<'a> {
                 let distance =
                     geodesic::convert_radians_to_metres(beta, alpha, xtd, self.ellipsoid);
                 // return the abs cross track distance in Metres
-                Metres(libm::fabs(distance.0))
+                Metres(distance.0.abs())
             }
         } else {
             // adjust atd to measure the distance from the centre of the Arc to the point
@@ -1450,7 +1450,7 @@ mod tests {
 
         let (atd, xtd, iterations) = g1.calculate_atd_and_xtd(&mid_position, precision);
         assert!(is_within_tolerance(half_length.0, atd.0, 1e-3));
-        assert!(libm::fabs(xtd.0) < 1e-3);
+        assert!(xtd.0.abs() < 1e-3);
         println!("calculate_atd_and_xtd iterations: {:?}", iterations);
 
         let distance = g1.shortest_distance(&mid_position, precision);
