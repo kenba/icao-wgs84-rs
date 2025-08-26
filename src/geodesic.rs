@@ -687,7 +687,6 @@ mod tests {
         // Northbound geodesic segment along a meridian
         let result = calculate_azimuths_arc_length(&latlon1, &latlon2, tolerance, &WGS84_ELLIPSOID);
         assert_eq!(0.0, Degrees::from(result.0).0);
-        // assert_eq!(2.61633787126823, (result.1).0);
         assert!(is_within_tolerance(
             2.61633787126823,
             (result.1).0,
@@ -699,7 +698,6 @@ mod tests {
         // Southbound geodesic segment along a meridian
         let result = calculate_azimuths_arc_length(&latlon2, &latlon1, tolerance, &WGS84_ELLIPSOID);
         assert_eq!(180.0, Degrees::from(result.0).0);
-        // assert_eq!(2.61633787126823, (result.1).0);
         assert!(is_within_tolerance(
             2.61633787126823,
             (result.1).0,
