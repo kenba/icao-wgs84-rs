@@ -110,7 +110,7 @@ pub use unit_sphere::LatLong;
 
 use angle_sc::trig;
 use once_cell::sync::Lazy;
-use unit_sphere::{great_circle, Vector3d};
+use unit_sphere::{Vector3d, great_circle};
 
 /// The parameters of an `Ellipsoid`.
 #[derive(Clone, Debug, PartialEq)]
@@ -688,6 +688,21 @@ impl<'a> GeodesicSegment<'a> {
         self.arc_lat_long(arc_distance, Angle::from(arc_distance))
     }
 
+    /// Calculate the parametric latitude, longitude and azimuth at the arc distance.
+    ///
+    /// * `arc_distance` - the arc distance on the auxiliary sphere in Radians.
+    ///
+    /// return the parametric latitude, longitude and azimuth at `arc_distance`.
+    #[must_use]
+    pub fn arc_angles(&self, arc_distance: Radians) -> (Angle, Angle, Angle) {
+        let sigma = Angle::from(arc_distance);
+        let beta: Angle = self.arc_beta(sigma);
+        let lon = self.arc_longitude(arc_distance, sigma);
+        let azimuth = self.arc_azimuth(sigma);
+
+        (beta, lon, azimuth)
+    }
+
     /// Calculate the vector on the auxiliary sphere at `arc_distance` in `Radians`.
     /// * `arc_distance` the great circle distance on the auxiliary sphere
     ///
@@ -697,9 +712,7 @@ impl<'a> GeodesicSegment<'a> {
         if arc_distance.abs().0 < great_circle::MIN_VALUE {
             unit_sphere::vector::to_point(self.beta, self.lon)
         } else {
-            let sigma = Angle::from(arc_distance);
-            let beta: Angle = self.arc_beta(sigma);
-            let lon = self.arc_longitude(arc_distance, sigma);
+            let (beta, lon, _) = self.arc_angles(arc_distance);
             unit_sphere::vector::to_point(beta, lon)
         }
     }
@@ -722,11 +735,7 @@ impl<'a> GeodesicSegment<'a> {
         if self.azi0.sin().abs().0 < great_circle::MIN_VALUE {
             unit_sphere::vector::calculate_pole(self.beta, self.lon, self.azi)
         } else {
-            let sigma = Angle::from(arc_distance);
-            let beta: Angle = self.arc_beta(sigma);
-            let lon = self.arc_longitude(arc_distance, sigma);
-            let sigma_sum = self.sigma1 + sigma;
-            let azimuth = Angle::from_y_x(self.azi0.sin().0, self.azi0.cos().0 * sigma_sum.cos().0);
+            let (beta, lon, azimuth) = self.arc_angles(arc_distance);
             unit_sphere::vector::calculate_pole(beta, lon, azimuth)
         }
     }
@@ -737,27 +746,16 @@ impl<'a> GeodesicSegment<'a> {
     /// returns the point and pole on the auxiliary sphere at `arc_distance`.
     #[must_use]
     pub fn arc_point_and_pole(&self, arc_distance: Radians) -> (Vector3d, Vector3d) {
-        let sigma = Angle::from(arc_distance);
-        let beta: Angle = self.arc_beta(sigma);
-        let lon = self.arc_longitude(arc_distance, sigma);
-        let point = unit_sphere::vector::to_point(beta, lon);
+        let (beta, lon, azimuth) = self.arc_angles(arc_distance);
 
         // if point is on a meridional GeodesicSegment use auxiliary sphere point and pole
-        if self.azi0.sin().abs().0 < great_circle::MIN_VALUE {
-            (
-                point,
-                unit_sphere::vector::calculate_pole(self.beta, self.lon, self.azi),
-            )
+        let pole = if self.azi0.sin().abs().0 < great_circle::MIN_VALUE {
+            unit_sphere::vector::calculate_pole(self.beta, self.lon, self.azi)
         } else {
-            // Note: point cannot be at North pole, since it is not on a meridional GeodesicSegment
-            // Use Karney's method to calculate azimuth.
-            let sigma_sum = self.sigma1 + sigma;
-            let azimuth = Angle::from_y_x(self.azi0.sin().0, self.azi0.cos().0 * sigma_sum.cos().0);
-            (
-                point,
-                unit_sphere::vector::calculate_pole(beta, lon, azimuth),
-            )
-        }
+            unit_sphere::vector::calculate_pole(beta, lon, azimuth)
+        };
+
+        (unit_sphere::vector::to_point(beta, lon), pole)
     }
 
     /// The reverse `GeodesicSegment` from end to start.
@@ -808,10 +806,7 @@ impl<'a> GeodesicSegment<'a> {
             let mut iterations = 1;
             while iterations < MAX_ITERATIONS {
                 // calculate the position and azimuth at atd along the GeodesicSegment
-                let atd_angle = Angle::from(atd);
-                let beta_x = self.arc_beta(Angle::from(atd));
-                let lon_x = self.arc_longitude(atd, atd_angle);
-                let azi_x = self.arc_azimuth(atd_angle);
+                let (beta_x, lon_x, azi_x) = self.arc_angles(atd);
 
                 // calculate the geodesic azimuth and length to the point from the GeodesicSegment position at atd
                 let (azi_p, length, _, _) = geodesic::aux_sphere_azimuths_length(
@@ -867,11 +862,10 @@ impl<'a> GeodesicSegment<'a> {
                 Metres(0.0)
             } else {
                 // convert cross track distance to Metres
-                let sigma = Angle::from(atd.clamp(self.arc_length));
-                let beta = self.arc_beta(sigma);
-                let alpha = self.arc_azimuth(sigma).quarter_turn_ccw();
+                let (beta_x, _lon, azi) = self.arc_angles(atd);
+                let alpha = azi.quarter_turn_ccw();
                 let distance =
-                    geodesic::convert_radians_to_metres(beta, alpha, xtd, self.ellipsoid);
+                    geodesic::convert_radians_to_metres(beta_x, alpha, xtd, self.ellipsoid);
                 // return the abs cross track distance in Metres
                 Metres(distance.0.abs())
             }
@@ -891,10 +885,8 @@ impl<'a> GeodesicSegment<'a> {
                 geodesic::convert_radians_to_metres(self.beta, alpha, distance, self.ellipsoid)
             } else {
                 // calculate the geodesic distance from the end of the segment
-                let arc_length = self.arc_length();
-                let sigma = Angle::from(arc_length);
-                let arc_beta = self.arc_beta(sigma);
-                let delta_long = lon - self.arc_longitude(arc_length, sigma);
+                let (arc_beta, arc_lon, _azi) = self.arc_angles(self.arc_length());
+                let delta_long = lon - arc_lon;
                 let (alpha, distance, _, _) = geodesic::aux_sphere_azimuths_length(
                     arc_beta,
                     beta,
@@ -1124,7 +1116,7 @@ mod tests {
     use super::*;
     use angle_sc::is_within_tolerance;
     use core::mem::size_of;
-    use unit_sphere::{great_circle, LatLong};
+    use unit_sphere::{LatLong, great_circle};
 
     #[test]
     fn test_ellipsoid_wgs84() {
