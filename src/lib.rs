@@ -342,10 +342,10 @@ pub struct GeodesicSegment<'a> {
     sigma1: Angle,
     /// Great circle arc length on the auxiliary sphere in radians.
     arc_length: Radians,
+    /// The half width of a Geodesic Rectangle in metres.
+    half_width: Metres,
     /// Integration constant: epsilon, derived from Clairaut's constant.
     eps: f64,
-    /// constant used to convert geodesic/great circle distances.
-    a1: f64,
     /// constant used to convert geodesic/great circle longitudes.
     a3c: f64,
     /// Start parameter for geodesic/great circle distance differences.
@@ -394,8 +394,8 @@ impl<'a> GeodesicSegment<'a> {
             azi0,
             sigma1,
             arc_length,
+            half_width: Metres(0.0),
             eps,
-            a1: ellipsoid::coefficients::evaluate_a1(eps) + 1.0,
             a3c: ellipsoid.calculate_a3c(azi0.sin(), eps),
             b11: ellipsoid::coefficients::sin_cos_series(&c1, sigma1),
             ellipsoid,
@@ -424,6 +424,20 @@ impl<'a> GeodesicSegment<'a> {
             arc_length,
             ellipsoid,
         )
+    }
+
+    #[must_use]
+    pub fn from_lat_lon_azi_arc_length_half_width(
+        a: &LatLong,
+        azimuth: Angle,
+        arc_length: Radians,
+        half_width: Metres,
+        ellipsoid: &'a Ellipsoid,
+    ) -> Self {
+        let mut arc =
+            GeodesicSegment::from_lat_lon_azi_arc_length(a, azimuth, arc_length, ellipsoid);
+        arc.set_half_width(half_width);
+        arc
     }
 
     /// Construct a `GeodesicSegment` using the "direct" method with the length in metres.
@@ -505,6 +519,20 @@ impl<'a> GeodesicSegment<'a> {
         self.arc_length
     }
 
+    /// Method to set the half width in metres.
+    /// Set the `half_width` of a `GeodesicSegment`
+    /// * `half_width` - the half width of the `GeodesicSegment`.
+    pub const fn set_half_width(&mut self, half_width: Metres) -> &mut Self {
+        self.half_width = half_width;
+        self
+    }
+
+    /// Accessor for the half width in metres.
+    #[must_use]
+    pub const fn half_width(&self) -> Metres {
+        self.half_width
+    }
+
     /// Accessor for the reference to the underlying `Ellipsoid`.
     #[must_use]
     pub const fn ellipsoid(&self) -> &Ellipsoid {
@@ -527,7 +555,8 @@ impl<'a> GeodesicSegment<'a> {
         if distance.0.abs() < great_circle::MIN_VALUE {
             Radians(0.0)
         } else {
-            let tau12 = Radians(distance.0 / (self.ellipsoid.b().0 * self.a1));
+            let a1 = ellipsoid::coefficients::evaluate_a1(self.eps) + 1.0;
+            let tau12 = Radians(distance.0 / (self.ellipsoid.b().0 * a1));
             let tau_sum = Angle::from(self.b11 + tau12);
             let c1p = ellipsoid::coefficients::evaluate_coeffs_c1p(self.eps);
             let b12 = ellipsoid::coefficients::sin_cos_series(&c1p, self.sigma1 + tau_sum);
@@ -547,7 +576,8 @@ impl<'a> GeodesicSegment<'a> {
         let sigma_sum = self.sigma1 + sigma;
         let c1 = ellipsoid::coefficients::evaluate_coeffs_c1(self.eps);
         let b12 = ellipsoid::coefficients::sin_cos_series(&c1, sigma_sum);
-        Metres(self.ellipsoid.b().0 * self.a1 * (arc_distance + b12 - self.b11).0)
+        let a1 = ellipsoid::coefficients::evaluate_a1(self.eps) + 1.0;
+        Metres(self.ellipsoid.b().0 * a1 * (arc_distance + b12 - self.b11).0)
     }
 
     /// Accessor for the length of the `GeodesicSegment` in metres.
@@ -764,13 +794,15 @@ impl<'a> GeodesicSegment<'a> {
     #[must_use]
     pub fn reverse(&self) -> GeodesicSegment<'_> {
         let sigma = Angle::from(self.arc_length);
-        GeodesicSegment::new(
+        let mut segment = GeodesicSegment::new(
             self.arc_beta(sigma),
             self.arc_longitude(self.arc_length, sigma),
             self.arc_azimuth(sigma).opposite(),
             self.arc_length,
             self.ellipsoid,
-        )
+        );
+        segment.set_half_width(self.half_width);
+        segment.clone()
     }
 
     /// Calculate along and across track distances to a position from a geodesic segment.
@@ -1285,6 +1317,7 @@ mod tests {
 
             let geodesic1 = GeodesicSegment::from((&a, azimuth, length));
             assert!(geodesic1.is_valid());
+            assert_eq!(Metres(0.0), geodesic1.half_width());
             let azi0 = geodesic1.azimuth(Metres(0.0));
             assert!(is_within_tolerance(
                 Radians::from(azimuth).0,
@@ -1297,6 +1330,7 @@ mod tests {
 
             let geodesic2 = GeodesicSegment::from((&a, azimuth, arc_length));
             assert!(geodesic2.is_valid());
+            assert_eq!(Metres(0.0), geodesic2.half_width());
             let azi0 = geodesic2.azimuth(Metres(0.0));
             assert!(is_within_tolerance(
                 Radians::from(azimuth).0,
@@ -1319,6 +1353,7 @@ mod tests {
         let g1 =
             GeodesicSegment::between_positions(&istanbul, &washington, tolerance, &WGS84_ELLIPSOID);
         assert!(g1.is_valid());
+        assert_eq!(Metres(0.0), g1.half_width());
 
         let end_azimuth = Degrees::from(g1.azimuth(g1.length()));
         assert_eq!(-132.2646607116376, end_azimuth.0);
@@ -1327,7 +1362,11 @@ mod tests {
         assert_eq!(g1_clone, g1);
 
         let g1_clone = g1_clone.set_arc_length(Radians(1.0));
+        assert_eq!(Radians(1.0), g1_clone.arc_length());
         println!("GeodesicSegment: {:?}", &g1_clone);
+
+        let g1_clone = g1_clone.set_half_width(Metres(2.0));
+        assert_eq!(Metres(2.0), g1_clone.half_width());
 
         // test start position
         assert!(is_within_tolerance(
