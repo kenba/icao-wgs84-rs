@@ -44,7 +44,7 @@
 //! distances using great-circles on the unit sphere at the calculated
 //! intersection distances.
 
-use crate::{geodesic, Angle, GeodesicSegment, Radians};
+use crate::{Angle, GeodesicSegment, Radians, geodesic};
 use unit_sphere::{great_circle, vector};
 
 /// Calculate the distances along a pair of Geodesics (in Radians) to their
@@ -241,7 +241,7 @@ pub fn calculate_sphere_intersection_distances(
 mod tests {
     use super::*;
     use crate::{GeodesicSegment, Metres};
-    use angle_sc::{is_within_tolerance, Angle, Degrees, Radians};
+    use angle_sc::{Angle, Degrees, Radians, is_within_tolerance};
     use unit_sphere::LatLong;
 
     #[test]
@@ -307,7 +307,14 @@ mod tests {
         let half_arc_length = g.metres_to_radians(half_length);
 
         // a geodesic from the start of g to its mid point
-        let g1 = GeodesicSegment::new(g.beta(), g.lon(), g.azi(), half_arc_length, g.ellipsoid());
+        let g1 = GeodesicSegment::new(
+            g.beta(),
+            g.lon(),
+            g.azi(),
+            half_arc_length,
+            Metres(0.0),
+            g.ellipsoid(),
+        );
         // a geodesic from the mid point of g to its end
         let half_arc_length_angle = Angle::from(half_arc_length);
         let g2 = GeodesicSegment::new(
@@ -315,6 +322,7 @@ mod tests {
             g.arc_longitude(half_arc_length, half_arc_length_angle),
             g.arc_azimuth(half_arc_length_angle),
             g.arc_length() - half_arc_length,
+            Metres(0.0),
             g.ellipsoid(),
         );
 
@@ -339,6 +347,7 @@ mod tests {
             g.arc_longitude(half_arc_length, half_arc_length_angle),
             g.azi(),
             half_arc_length,
+            Metres(0.0),
             g.ellipsoid(),
         );
 

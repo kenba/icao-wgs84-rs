@@ -26,10 +26,10 @@
 #![allow(clippy::float_cmp)]
 #![allow(clippy::many_single_char_names)]
 
-use crate::{ellipsoid, Ellipsoid, Metres};
-use angle_sc::{trig, trig::UnitNegRange, Angle, Radians};
+use crate::{Ellipsoid, Metres, ellipsoid};
+use angle_sc::{Angle, Radians, trig, trig::UnitNegRange};
 use core::f64;
-use unit_sphere::{great_circle, LatLong};
+use unit_sphere::{LatLong, great_circle};
 
 /// Estimate omega12 by solving the astroid problem.
 /// Solve k^4+2*k^3-(x^2+y^2-1)*k^2-2*y^2*k-y^2 = 0 for positive root k.
@@ -570,7 +570,7 @@ pub fn convert_radians_to_metres(
 mod tests {
     use super::*;
     use crate::{GeodesicSegment, WGS84_ELLIPSOID};
-    use angle_sc::{is_within_tolerance, Degrees};
+    use angle_sc::{Degrees, is_within_tolerance};
 
     #[test]
     fn test_calculate_astroid() {
@@ -797,6 +797,7 @@ mod tests {
             Angle::from(Degrees(70.0)),
             result.0,
             result.1,
+            Metres(0.0),
             &WGS84_ELLIPSOID,
         );
         let latlon3 = g.arc_lat_long(result.1, Angle::from(result.1));
@@ -834,6 +835,7 @@ mod tests {
             Angle::from(Degrees(70.0)),
             result.0,
             result.1,
+            Metres(0.0),
             &WGS84_ELLIPSOID,
         );
         let latlon3 = g.arc_lat_long(result.1, Angle::from(result.1));
@@ -872,6 +874,7 @@ mod tests {
             Angle::default(),
             result.0,
             result.1,
+            Metres(0.0),
             &WGS84_ELLIPSOID,
         );
         let latlon3 = g.arc_lat_long(result.1, Angle::from(result.1));
@@ -910,6 +913,7 @@ mod tests {
             Angle::default(),
             result.0,
             result.1,
+            Metres(0.0),
             &WGS84_ELLIPSOID,
         );
         let latlon3 = g.arc_lat_long(result.1, Angle::from(result.1));

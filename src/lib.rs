@@ -358,7 +358,9 @@ impl Validate for GeodesicSegment<'_> {
     /// Test whether a `GeodesicSegment` is valid.
     /// Whether 0° <= `latitude` <= 90° and 0 <= `arc_length` <= π.
     fn is_valid(&self) -> bool {
-        self.beta.cos().0 >= 0.0 && (0.0..core::f64::consts::PI).contains(&self.arc_length.0)
+        self.beta.cos().0 >= 0.0
+            && (0.0..core::f64::consts::PI).contains(&self.arc_length.0)
+            && self.half_width.0 >= 0.0
     }
 }
 
@@ -368,6 +370,7 @@ impl<'a> GeodesicSegment<'a> {
     /// * `lon` - the start point longitude.
     /// * `azi` - the start azimuth.
     /// * `arc_length` - the great circle arc length on the auxiliary sphere in radians.
+    /// * `half_width` - the `GeodesicSegment` half width in Metres.
     /// * `ellipsoid` - a reference to the `Ellipsoid`.
     #[must_use]
     pub fn new(
@@ -375,6 +378,7 @@ impl<'a> GeodesicSegment<'a> {
         lon: Angle,
         azi: Angle,
         arc_length: Radians,
+        half_width: Metres,
         ellipsoid: &'a Ellipsoid,
     ) -> Self {
         // Calculate the azimuth at the first Equator crossing
@@ -394,12 +398,39 @@ impl<'a> GeodesicSegment<'a> {
             azi0,
             sigma1,
             arc_length,
-            half_width: Metres(0.0),
+            half_width,
             eps,
             a3c: ellipsoid.calculate_a3c(azi0.sin(), eps),
             b11: ellipsoid::coefficients::sin_cos_series(&c1, sigma1),
             ellipsoid,
         }
+    }
+
+    /// Construct a `GeodesicSegment` using the "direct" method.
+    /// @pre |lat| <= 90.0 degrees.
+    /// * `a` - the start position in geodetic coordinates.
+    /// * `azimuth` - the azimuth at the start position.
+    /// * `arc_length` - the Great Circle arc length on the auxiliary sphere in radians.
+    /// * `half_width` - the `GeodesicSegment` half width in Metres.
+    /// * `ellipsoid` - a reference to the `Ellipsoid`.
+    #[must_use]
+    pub fn from_lat_lon_azi_arc_length_half_width(
+        a: &LatLong,
+        azimuth: Angle,
+        arc_length: Radians,
+        half_width: Metres,
+        ellipsoid: &'a Ellipsoid,
+    ) -> Self {
+        let a_lat = Angle::from(a.lat());
+        let a_lon = Angle::from(a.lon());
+        GeodesicSegment::new(
+            ellipsoid.calculate_parametric_latitude(a_lat),
+            a_lon,
+            azimuth,
+            arc_length,
+            half_width,
+            ellipsoid,
+        )
     }
 
     /// Construct a `GeodesicSegment` using the "direct" method.
@@ -415,29 +446,13 @@ impl<'a> GeodesicSegment<'a> {
         arc_length: Radians,
         ellipsoid: &'a Ellipsoid,
     ) -> Self {
-        let a_lat = Angle::from(a.lat());
-        let a_lon = Angle::from(a.lon());
-        GeodesicSegment::new(
-            ellipsoid.calculate_parametric_latitude(a_lat),
-            a_lon,
+        GeodesicSegment::from_lat_lon_azi_arc_length_half_width(
+            a,
             azimuth,
             arc_length,
+            Metres(0.0),
             ellipsoid,
         )
-    }
-
-    #[must_use]
-    pub fn from_lat_lon_azi_arc_length_half_width(
-        a: &LatLong,
-        azimuth: Angle,
-        arc_length: Radians,
-        half_width: Metres,
-        ellipsoid: &'a Ellipsoid,
-    ) -> Self {
-        let mut arc =
-            GeodesicSegment::from_lat_lon_azi_arc_length(a, azimuth, arc_length, ellipsoid);
-        arc.set_half_width(half_width);
-        arc
     }
 
     /// Construct a `GeodesicSegment` using the "direct" method with the length in metres.
@@ -462,12 +477,14 @@ impl<'a> GeodesicSegment<'a> {
     /// Construct a `GeodesicSegment` between a pair of positions, the "indirect" method.
     /// @pre |lat| <= 90.0 degrees.
     /// * `a`, `b` - the start and finish positions in geodetic coordinates.
+    /// * `half_width` - the `GeodesicSegment` half width in Metres.
     /// * `tolerance` - the tolerance to perform the calculation to.
     /// * `ellipsoid` - a reference to the `Ellipsoid`.
     #[must_use]
     pub fn between_positions(
         a: &LatLong,
         b: &LatLong,
+        half_width: Metres,
         tolerance: Radians,
         ellipsoid: &'a Ellipsoid,
     ) -> Self {
@@ -477,14 +494,17 @@ impl<'a> GeodesicSegment<'a> {
         // if a is at the North or South pole
         if a_lat.cos().0 < great_circle::MIN_VALUE {
             // use b's longitude
-            Self::from_lat_lon_azi_arc_length(
+            Self::from_lat_lon_azi_arc_length_half_width(
                 &LatLong::new(a.lat(), b.lon()),
                 azimuth,
                 arc_length,
+                half_width,
                 ellipsoid,
             )
         } else {
-            Self::from_lat_lon_azi_arc_length(a, azimuth, arc_length, ellipsoid)
+            Self::from_lat_lon_azi_arc_length_half_width(
+                a, azimuth, arc_length, half_width, ellipsoid,
+            )
         }
     }
 
@@ -799,6 +819,7 @@ impl<'a> GeodesicSegment<'a> {
             self.arc_longitude(self.arc_length, sigma),
             self.arc_azimuth(sigma).opposite(),
             self.arc_length,
+            self.half_width,
             self.ellipsoid,
         );
         segment.set_half_width(self.half_width);
@@ -946,7 +967,7 @@ impl<'a> GeodesicSegment<'a> {
     ///
     /// let istanbul = LatLong::new(Degrees(42.0), Degrees(29.0));
     /// let washington = LatLong::new(Degrees(39.0), Degrees(-77.0));
-    /// let g1 = GeodesicSegment::between_positions(&istanbul, &washington, tolerance, &WGS84_ELLIPSOID);
+    /// let g1 = GeodesicSegment::between_positions(&istanbul, &washington, Metres(0.0), tolerance, &WGS84_ELLIPSOID);
     ///
     /// let azimuth_degrees = Degrees::from(g1.azimuth(Metres(0.0)));
     /// println!("Istanbul-Washington initial azimuth: {:?}", azimuth_degrees.0);
@@ -1058,6 +1079,7 @@ impl From<(&LatLong, &LatLong)> for GeodesicSegment<'_> {
         Self::between_positions(
             params.0,
             params.1,
+            Metres(0.0),
             Radians(great_circle::MIN_VALUE),
             &WGS84_ELLIPSOID,
         )
@@ -1350,8 +1372,13 @@ mod tests {
 
         let tolerance = Radians(great_circle::MIN_VALUE);
 
-        let g1 =
-            GeodesicSegment::between_positions(&istanbul, &washington, tolerance, &WGS84_ELLIPSOID);
+        let g1 = GeodesicSegment::between_positions(
+            &istanbul,
+            &washington,
+            Metres(0.0),
+            tolerance,
+            &WGS84_ELLIPSOID,
+        );
         assert!(g1.is_valid());
         assert_eq!(Metres(0.0), g1.half_width());
 
