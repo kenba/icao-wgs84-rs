@@ -616,11 +616,12 @@ impl<'a> GeodesicSegment<'a> {
     }
 
     /// Calculate the geodetic latitude at the great circle arc distance.
-    /// * `sigma` - the arc distance on the auxiliary sphere as an Angle.
+    /// * `arc_distance` - the great circle arc distance on the auxiliary sphere.
     ///
-    /// return the geodetic latitude of the position at `sigma`.
+    /// return the geodetic latitude of the position at `arc_distance`.
     #[must_use]
-    pub fn arc_latitude(&self, sigma: Angle) -> Angle {
+    pub fn arc_latitude(&self, arc_distance: Radians) -> Angle {
+        let sigma = Angle::from(arc_distance);
         self.ellipsoid
             .calculate_geodetic_latitude(self.arc_beta(sigma))
     }
@@ -631,8 +632,8 @@ impl<'a> GeodesicSegment<'a> {
     /// return the geodetic latitude of the position at distance.
     #[must_use]
     pub fn latitude(&self, distance: Metres) -> Angle {
-        let sigma = Angle::from(self.metres_to_radians(distance));
-        self.arc_latitude(sigma)
+        let arc_distance = self.metres_to_radians(distance);
+        self.arc_latitude(arc_distance)
     }
 
     /// Calculate the azimuth at the great circle length.
@@ -696,11 +697,11 @@ impl<'a> GeodesicSegment<'a> {
     /// Calculate the geodesic longitude at the great circle length along
     /// the auxiliary sphere.
     /// * `arc_distance` - the great circle arc distance on the auxiliary sphere.
-    /// * `sigma` - the arc distance as an Angle.
     ///
     /// return the longitude of the geodesic at `arc_distance`.
     #[must_use]
-    pub fn arc_longitude(&self, arc_distance: Radians, sigma: Angle) -> Angle {
+    pub fn arc_longitude(&self, arc_distance: Radians) -> Angle {
+        let sigma = Angle::from(arc_distance);
         self.lon + self.delta_longitude(arc_distance, sigma)
     }
 
@@ -710,21 +711,34 @@ impl<'a> GeodesicSegment<'a> {
     /// return the longitude of the geodesic at distance.
     #[must_use]
     pub fn longitude(&self, distance: Metres) -> Angle {
-        let arc_distance = self.metres_to_radians(distance);
-        self.arc_longitude(arc_distance, Angle::from(arc_distance))
+        self.arc_longitude(self.metres_to_radians(distance))
+    }
+
+    /// Calculate the parametric latitude and longitude at the arc distance.
+    ///
+    /// * `arc_distance` - the arc distance on the auxiliary sphere in Radians.
+    ///
+    /// return the parametric latitude and longitude at `arc_distance`.
+    #[must_use]
+    pub fn arc_beta_long(&self, arc_distance: Radians) -> (Angle, Angle) {
+        let sigma = Angle::from(arc_distance);
+        (
+            self.arc_beta(sigma),
+            self.lon + self.delta_longitude(arc_distance, sigma),
+        )
     }
 
     /// Calculate the geodesic `LatLong` at the arc distance along
     /// the auxiliary sphere.
     /// * `arc_distance` - the great circle arc distance on the auxiliary sphere.
-    /// * `sigma` - the arc distance as an Angle.
     ///
     /// return the `LatLong` of the geodesic position at `arc_distance`.
     #[must_use]
-    pub fn arc_lat_long(&self, arc_distance: Radians, sigma: Angle) -> LatLong {
+    pub fn arc_lat_long(&self, arc_distance: Radians) -> LatLong {
+        let (beta, lon) = self.arc_beta_long(arc_distance);
         LatLong::new(
-            angle_sc::Degrees::from(self.arc_latitude(sigma)),
-            angle_sc::Degrees::from(self.arc_longitude(arc_distance, sigma)),
+            angle_sc::Degrees::from(self.ellipsoid.calculate_geodetic_latitude(beta)),
+            angle_sc::Degrees::from(lon),
         )
     }
 
@@ -735,7 +749,7 @@ impl<'a> GeodesicSegment<'a> {
     #[must_use]
     pub fn lat_long(&self, distance: Metres) -> LatLong {
         let arc_distance = self.metres_to_radians(distance);
-        self.arc_lat_long(arc_distance, Angle::from(arc_distance))
+        self.arc_lat_long(arc_distance)
     }
 
     /// Calculate the parametric latitude, longitude and azimuth at the arc distance.
@@ -747,7 +761,7 @@ impl<'a> GeodesicSegment<'a> {
     pub fn arc_angles(&self, arc_distance: Radians) -> (Angle, Angle, Angle) {
         let sigma = Angle::from(arc_distance);
         let beta: Angle = self.arc_beta(sigma);
-        let lon = self.arc_longitude(arc_distance, sigma);
+        let lon = self.lon + self.delta_longitude(arc_distance, sigma);
         let azimuth = self.arc_azimuth(sigma);
 
         (beta, lon, azimuth)
@@ -762,7 +776,7 @@ impl<'a> GeodesicSegment<'a> {
         if arc_distance.abs().0 < great_circle::MIN_VALUE {
             unit_sphere::vector::to_point(self.beta, self.lon)
         } else {
-            let (beta, lon, _) = self.arc_angles(arc_distance);
+            let (beta, lon) = self.arc_beta_long(arc_distance);
             unit_sphere::vector::to_point(beta, lon)
         }
     }
@@ -816,7 +830,7 @@ impl<'a> GeodesicSegment<'a> {
         let sigma = Angle::from(self.arc_length);
         let mut segment = GeodesicSegment::new(
             self.arc_beta(sigma),
-            self.arc_longitude(self.arc_length, sigma),
+            self.lon + self.delta_longitude(self.arc_length, sigma),
             self.arc_azimuth(sigma).opposite(),
             self.arc_length,
             self.half_width,
@@ -1159,7 +1173,7 @@ pub fn calculate_intersection_point(
         && unit_sphere::vector::intersection::is_alongside(distance2, g2.arc_length(), precision)
     {
         let distance = distance1.clamp(g1.arc_length());
-        Some(g1.arc_lat_long(distance, Angle::from(distance)))
+        Some(g1.arc_lat_long(distance))
     } else {
         None
     }
@@ -1519,21 +1533,20 @@ mod tests {
         assert_eq!(g1.length(), g2.length());
         assert_eq!(
             washington.lat().0,
-            Degrees::from(g2.arc_latitude(Angle::default())).0
+            Degrees::from(g2.arc_latitude(Radians::default())).0
         );
         assert_eq!(
             washington.lon().0,
-            Degrees::from(g2.arc_longitude(Radians(0.0), Angle::default())).0
+            Degrees::from(g2.arc_longitude(Radians(0.0))).0
         );
-        let sigma = Angle::from(g2.arc_length());
         assert!(is_within_tolerance(
             istanbul.lat().0,
-            Degrees::from(g2.arc_latitude(sigma)).0,
+            Degrees::from(g2.arc_latitude(g2.arc_length())).0,
             64.0 * f64::EPSILON
         ));
         assert!(is_within_tolerance(
             istanbul.lon().0,
-            Degrees::from(g2.arc_longitude(g2.arc_length(), sigma)).0,
+            Degrees::from(g2.arc_longitude(g2.arc_length())).0,
             64.0 * f64::EPSILON
         ));
     }

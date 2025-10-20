@@ -319,7 +319,7 @@ mod tests {
         let half_arc_length_angle = Angle::from(half_arc_length);
         let g2 = GeodesicSegment::new(
             g.arc_beta(half_arc_length_angle),
-            g.arc_longitude(half_arc_length, half_arc_length_angle),
+            g.arc_longitude(half_arc_length),
             g.arc_azimuth(half_arc_length_angle),
             g.arc_length() - half_arc_length,
             Metres(0.0),
@@ -344,7 +344,7 @@ mod tests {
         // a geodesic from the mid point of g to another point
         let g3 = GeodesicSegment::new(
             g.arc_beta(Angle::from(half_arc_length)),
-            g.arc_longitude(half_arc_length, half_arc_length_angle),
+            g.arc_longitude(half_arc_length),
             g.azi(),
             half_arc_length,
             Metres(0.0),

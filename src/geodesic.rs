@@ -800,7 +800,7 @@ mod tests {
             Metres(0.0),
             &WGS84_ELLIPSOID,
         );
-        let latlon3 = g.arc_lat_long(result.1, Angle::from(result.1));
+        let latlon3 = g.arc_lat_long(result.1);
         assert_eq!(
             Degrees::from(latlon3.lat()).0,
             Degrees::from(latlon2.lat()).0
@@ -838,7 +838,7 @@ mod tests {
             Metres(0.0),
             &WGS84_ELLIPSOID,
         );
-        let latlon3 = g.arc_lat_long(result.1, Angle::from(result.1));
+        let latlon3 = g.arc_lat_long(result.1);
         assert!(is_within_tolerance(
             Degrees::from(latlon2.lat()).0,
             Degrees::from(latlon3.lat()).0,
@@ -877,7 +877,7 @@ mod tests {
             Metres(0.0),
             &WGS84_ELLIPSOID,
         );
-        let latlon3 = g.arc_lat_long(result.1, Angle::from(result.1));
+        let latlon3 = g.arc_lat_long(result.1);
         assert!(is_within_tolerance(
             Degrees::from(latlon2.lat()).0,
             Degrees::from(latlon3.lat()).0,
@@ -916,7 +916,7 @@ mod tests {
             Metres(0.0),
             &WGS84_ELLIPSOID,
         );
-        let latlon3 = g.arc_lat_long(result.1, Angle::from(result.1));
+        let latlon3 = g.arc_lat_long(result.1);
         assert!(is_within_tolerance(
             Degrees::from(latlon2.lat()).0,
             Degrees::from(latlon3.lat()).0,
