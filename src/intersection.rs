@@ -173,15 +173,7 @@ pub fn calculate_sphere_intersection_distances(
                 // The start of the second geodesic lies on the first geodesic
 
                 // Calculate the angle at the intersection position
-                let angle = if delta_azimuth1_2.sin().abs().0 < vector::MIN_SIN_ANGLE {
-                    if reciprocal {
-                        Angle::default().opposite()
-                    } else {
-                        Angle::default()
-                    }
-                } else {
-                    delta_azimuth1_2
-                };
+                let angle = g2.azi() - g1.arc_azimuth(Angle::from(atd));
                 (atd, Radians(0.0), angle, 0)
             }
         } else {
@@ -343,7 +335,7 @@ mod tests {
 
         // a geodesic from the mid point of g to another point
         let g3 = GeodesicSegment::new(
-            g.arc_beta(Angle::from(half_arc_length)),
+            g.arc_beta(half_arc_length_angle),
             g.arc_longitude(half_arc_length),
             g.azi(),
             half_arc_length,
@@ -360,7 +352,10 @@ mod tests {
             f64::EPSILON
         ));
         assert_eq!(0.0, distance2.0);
-        assert_eq!(0.0, Degrees::from(angle).0);
+        assert_eq!(
+            Degrees::from(g3.azi() - g1.arc_azimuth(half_arc_length_angle)).0,
+            Degrees::from(angle).0
+        );
         assert_eq!(0, iterations);
     }
 }
