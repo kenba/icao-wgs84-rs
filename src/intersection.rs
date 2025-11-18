@@ -152,30 +152,23 @@ pub fn calculate_sphere_intersection_distances(
 
         // Determine whether the geodesics are coincident
         let delta_azimuth1_3 = g3_azi - g1.azi();
-        if delta_azimuth1_3.sin().abs().0 < vector::MIN_SIN_ANGLE {
-            // The geodesics may be coincident
-            let delta_azimuth2_3 = g3_end_azi - g2.azi();
-            if delta_azimuth2_3.sin().abs().0 < vector::MIN_SIN_ANGLE {
-                // The geodesics are coincident
-                let distances = vector::intersection::calculate_coincident_arc_distances(
-                    atd,
-                    reciprocal,
-                    g1.arc_length(),
-                    g2.arc_length(),
-                );
-                let angle = if reciprocal {
-                    Angle::default().opposite()
-                } else {
-                    Angle::default()
-                };
-                (distances.0, distances.1, angle, 0)
+        let delta_azimuth2_3 = g3_end_azi - g2.azi();
+        if delta_azimuth1_3.sin().abs().0 < vector::MIN_SIN_ANGLE
+            && delta_azimuth2_3.sin().abs().0 < vector::MIN_SIN_ANGLE
+        {
+            // The geodesics are coincident
+            let distances = vector::intersection::calculate_coincident_arc_distances(
+                atd,
+                reciprocal,
+                g1.arc_length(),
+                g2.arc_length(),
+            );
+            let angle = if reciprocal {
+                Angle::default().opposite()
             } else {
-                // The start of the second geodesic lies on the first geodesic
-
-                // Calculate the angle at the intersection position
-                let angle = g2.azi() - g1.arc_azimuth(Angle::from(atd));
-                (atd, Radians(0.0), angle, 0)
-            }
+                Angle::default()
+            };
+            (distances.0, distances.1, angle, 0)
         } else {
             // Calculate the intersection of the poles at the mid points of the unit
             // sphere great circle arcs
@@ -349,13 +342,14 @@ mod tests {
         assert!(is_within_tolerance(
             g1.arc_length().0,
             distance1.0,
-            f64::EPSILON
+            precision.0
         ));
-        assert_eq!(0.0, distance2.0);
-        assert_eq!(
+        assert!(is_within_tolerance(0.0, distance2.0, precision.0));
+        assert!(is_within_tolerance(
             Degrees::from(g3.azi() - g1.arc_azimuth(half_arc_length_angle)).0,
-            Degrees::from(angle).0
-        );
-        assert_eq!(0, iterations);
+            Degrees::from(angle).0,
+            precision.0
+        ));
+        assert_eq!(5, iterations);
     }
 }
