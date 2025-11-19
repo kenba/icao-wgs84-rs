@@ -144,12 +144,6 @@ pub fn calculate_sphere_intersection_distances(
             g1.ellipsoid(),
         );
 
-        let atd = if reciprocal {
-            -g3_arc_length
-        } else {
-            g3_arc_length
-        };
-
         // Determine whether the geodesics are coincident
         let delta_azimuth1_3 = g3_azi - g1.azi();
         let delta_azimuth2_3 = g3_end_azi - g2.azi();
@@ -157,6 +151,12 @@ pub fn calculate_sphere_intersection_distances(
             && delta_azimuth2_3.sin().abs().0 < vector::MIN_SIN_ANGLE
         {
             // The geodesics are coincident
+            let (a1, pole1) = g1.arc_point_and_pole(Radians(0.0));
+            let atd = Radians(
+                g3_arc_length
+                    .0
+                    .copysign(unit_sphere::vector::sin_atd(&a1, &pole1, &g2.a()).0),
+            );
             let distances = vector::intersection::calculate_coincident_arc_distances(
                 atd,
                 reciprocal,
@@ -182,6 +182,12 @@ pub fn calculate_sphere_intersection_distances(
                 .map_or_else(
                     || {
                         // This code should never be executed.
+                        let (a1, pole1) = g1.arc_point_and_pole(Radians(0.0));
+                        let atd = Radians(
+                            g3_arc_length
+                                .0
+                                .copysign(unit_sphere::vector::sin_atd(&a1, &pole1, &g2.a()).0),
+                        );
                         let distances = vector::intersection::calculate_coincident_arc_distances(
                             atd,
                             reciprocal,
@@ -351,5 +357,60 @@ mod tests {
             precision.0
         ));
         assert_eq!(5, iterations);
+    }
+
+    #[test]
+    fn test_same_geodesic_no_intersection() {
+        // A GeodesicSegment along the Equator, heading West
+        let a = LatLong::new(Degrees(0.0), Degrees(-4.0));
+        let b = LatLong::new(Degrees(0.0), Degrees(0.0));
+        let g1 = GeodesicSegment::from((&a, &b));
+        let g3 = GeodesicSegment::from((&b, &a));
+
+        // A GeodesicSegment along the Equator, heading East
+        let c = LatLong::new(Degrees(0.0), Degrees(0.25));
+        let d = LatLong::new(Degrees(0.0), Degrees(04.0));
+        let g2 = GeodesicSegment::from((&c, &d));
+        let g4 = GeodesicSegment::from((&d, &c));
+
+        // 1m precision in Radians on the unit sphere
+        let precision = Radians(Metres(1.0).0 / g1.ellipsoid().a().0);
+
+        let (distance1, distance2, _angle, _iterations) =
+            calculate_sphere_intersection_distances(&g1, &g2, precision);
+        assert!(is_within_tolerance(
+            4.2643_f64.to_radians(),
+            distance1.0,
+            precision.0
+        ));
+        assert_eq!(0.0, distance2.0);
+
+        let (distance1, distance2, _angle, _iterations) =
+            calculate_sphere_intersection_distances(&g3, &g2, precision);
+        assert!(is_within_tolerance(
+            -0.25084_f64.to_radians(),
+            distance1.0,
+            precision.0
+        ));
+        assert_eq!(-0.00437800174091304, distance1.0);
+        assert_eq!(0.0, distance2.0);
+
+        let (distance1, distance2, _angle, _iterations) =
+            calculate_sphere_intersection_distances(&g1, &g4, precision);
+        assert!(is_within_tolerance(
+            4.2643_f64.to_radians(),
+            distance1.0,
+            precision.0
+        ));
+        assert_eq!(g4.arc_length().0, distance2.0);
+
+        let (distance1, distance2, _angle, _iterations) =
+            calculate_sphere_intersection_distances(&g3, &g4, precision);
+        assert_eq!(0.0, distance1.0);
+        assert!(is_within_tolerance(
+            4.01345_f64.to_radians(),
+            distance2.0,
+            precision.0
+        ));
     }
 }
