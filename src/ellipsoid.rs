@@ -27,7 +27,7 @@ pub mod coefficients;
 pub mod wgs84;
 
 use crate::Metres;
-use angle_sc::{trig, Angle};
+use angle_sc::{Angle, trig};
 
 /// Calculate the Semiminor axis of an ellipsoid.
 /// * `a` - the Semimajor axis of an ellipsoid.
@@ -127,7 +127,7 @@ pub fn calculate_geodetic_latitude(lat: Angle, one_minus_f: f64) -> Angle {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use angle_sc::{is_within_tolerance, Degrees, Radians};
+    use angle_sc::{Degrees, Radians, is_within_tolerance};
 
     #[test]
     fn test_calculate_epsilon() {

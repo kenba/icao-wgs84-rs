@@ -21,9 +21,9 @@
 extern crate icao_wgs84;
 
 use angle_sc::{Angle, Degrees, Radians};
-use icao_wgs84::{geodesic, Metres, WGS84_ELLIPSOID};
+use icao_wgs84::{Metres, WGS84_ELLIPSOID, geodesic};
 use polars::prelude::*;
-use unit_sphere::{great_circle, LatLong};
+use unit_sphere::{LatLong, great_circle};
 
 const FILENAME: &str = "data/rtca_do_283b_geodesic_examples.csv";
 

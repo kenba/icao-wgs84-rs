@@ -22,13 +22,13 @@
 extern crate icao_wgs84;
 
 use angle_sc::{Angle, Degrees, Radians};
-use icao_wgs84::{geodesic, Metres, WGS84_ELLIPSOID};
+use icao_wgs84::{Metres, WGS84_ELLIPSOID, geodesic};
 use polars::prelude::*;
 use std::env;
 use std::path::Path;
 use std::time::Instant;
 
-use unit_sphere::{great_circle, LatLong};
+use unit_sphere::{LatLong, great_circle};
 
 // The location of the file on sourceforge.net
 // const FILEPATH: &str = "https://sourceforge.net/projects/geographiclib/files/testdata/GeodTest.dat.gz/download";
