@@ -21,11 +21,9 @@
 extern crate icao_wgs84;
 
 use angle_sc::{Angle, Degrees, Radians};
+use csv;
 use icao_wgs84::{Metres, WGS84_ELLIPSOID, geodesic};
-use polars::prelude::*;
 use unit_sphere::{LatLong, great_circle};
-
-const FILENAME: &str = "data/rtca_do_283b_geodesic_examples.csv";
 
 /// Calculate the geodesic values for the given start and end point latitudes and longitudes.
 ///
@@ -52,71 +50,47 @@ fn calculate_geodesic_inverse_values(
     (result.0, result.2, result_m, result.1, result.3)
 }
 
+const FILENAME: &str = "data/rtca_do_283b_geodesic_examples.csv";
+
+type DataRecord = (f64, f64, f64, f64, f64, f64, f64, f64);
+
 #[test]
 #[ignore]
 fn test_rtca_do_283b_examples() -> Result<(), Box<dyn std::error::Error>> {
-    let lf = LazyCsvReader::new(PlPath::new(FILENAME))
-        .finish()?
-        .collect()?;
-    // println!("{lf}");
-
-    let length = lf.height();
-    let mut index_v = Vec::with_capacity(length);
-    let mut end_azi_v = Vec::with_capacity(length);
-    let mut delta_azimuth_v = Vec::with_capacity(length);
-    let mut delta_length_v = Vec::with_capacity(length);
-    let mut delta_error_v = Vec::with_capacity(length);
+    let mut rdr = csv::Reader::from_path(FILENAME)?;
+    println!("index,end_azimuth,delta_azimuth,delta_length_m,delta_error_m");
 
     let mut index = 0;
-    lf.column("Departure_Latitude")?
-        .f64()?
-        .into_no_null_iter()
-        .zip(lf.column("Departure_Longitude")?.f64()?.into_no_null_iter())
-        .zip(lf.column("Arrival_Latitude")?.f64()?.into_no_null_iter())
-        .zip(lf.column("Arrival_Longitude")?.f64()?.into_no_null_iter())
-        .zip(lf.column("Departure_Bearing")?.f64()?.into_no_null_iter())
-        // .zip(lf.column("Arrival_Bearing")?.f64()?.into_no_null_iter())
-        .zip(lf.column("Ranges")?.f64()?.into_no_null_iter())
-        .zip(lf.column("Range_Error")?.f64()?.into_no_null_iter())
-        .for_each(
-            |((((((lat1, lon1), lat2), lon2), azi1), d_metres), range_error)| {
-                let (azi, end_azi, distance_m, _arc_length, _iterations) =
-                    calculate_geodesic_inverse_values(lat1, lon1, lat2, lon2);
+    for result in rdr.deserialize::<DataRecord>() {
+        let record = result?;
+        // println!("{:?}", record);
 
-                // Convert azimuths to degrees
-                let azi = Degrees::from(azi).0;
-                let end_azi = Degrees::from(end_azi).0;
+        let lat1 = record.0;
+        let lon1 = record.1;
+        let lat2 = record.2;
+        let lon2 = record.3;
+        let azi1 = record.4;
+        let _azi2 = record.5;
+        let d_metres = record.6;
+        let range_error = record.7;
 
-                let delta_azimuth = (azi1 - azi).abs();
-                let delta_length_m = (d_metres - distance_m.0).abs();
-                let delta_error_m = range_error - delta_length_m;
+        let (azi, end_azi, distance_m, _arc_length, _iterations) =
+            calculate_geodesic_inverse_values(lat1, lon1, lat2, lon2);
 
-                // push values into vectors
-                index_v.push(index + 1);
-                end_azi_v.push(end_azi);
-                delta_azimuth_v.push(delta_azimuth);
-                delta_length_v.push(delta_length_m);
-                delta_error_v.push(delta_error_m);
+        // Convert azimuths to degrees
+        let azi = Degrees::from(azi).0;
+        let end_azi = Degrees::from(end_azi).0;
 
-                index += 1;
-            },
-        );
+        // Calculate differences
+        let delta_azimuth = (azi1 - azi).abs();
+        let delta_length_m = (d_metres - distance_m.0).abs();
+        let delta_error_m = range_error - delta_length_m;
 
-    // Create a DataFrame for the output values
-    let line_no_column = Column::new("line_no".into(), index_v);
-    let end_azi_column = Column::new("end_azi".into(), end_azi_v);
-    let delta_azi_column = Column::new("delta_azi".into(), delta_azimuth_v);
-    let delta_length_column = Column::new("delta_length".into(), delta_length_v);
-    let delta_error_column = Column::new("delta_error".into(), delta_error_v);
-    let df = DataFrame::new(vec![
-        line_no_column,
-        end_azi_column,
-        delta_azi_column,
-        delta_length_column,
-        delta_error_column,
-    ])?;
+        // Output values
+        println!("{index},{end_azi},{delta_azimuth},{delta_length_m},{delta_error_m}");
 
-    println!("{df}");
+        index += 1;
+    }
 
     Ok(())
 }
