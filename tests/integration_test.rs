@@ -22,8 +22,8 @@
 extern crate icao_wgs84;
 
 use angle_sc::{Angle, Degrees, Radians};
+use csv::{ReaderBuilder, WriterBuilder};
 use icao_wgs84::{Metres, WGS84_ELLIPSOID, geodesic};
-use polars::prelude::*;
 use std::env;
 use std::path::Path;
 use std::time::Instant;
@@ -43,31 +43,19 @@ use unit_sphere::{LatLong, great_circle};
 //  between_vertices_df = tests_df[400000:450000]
 //  end_by_vertices_df = tests_df[450000:500000]
 
-/// Read the geodesic data file at file_path
-fn read_geodesic_data_file(file_path: &str) -> Result<DataFrame, Box<dyn std::error::Error>> {
-    // The Schema of the geodesic data file
-    let mut schema = Schema::with_capacity(10);
-    schema.insert("lat1".into(), DataType::Float64);
-    schema.insert("lon1".into(), DataType::Int64);
-    schema.insert("azi1".into(), DataType::Float64);
-    schema.insert("lat2".into(), DataType::Float64);
-    schema.insert("lon2".into(), DataType::Float64);
-    schema.insert("azi2".into(), DataType::Float64);
-    schema.insert("distance_metres".into(), DataType::Float64);
-    schema.insert("arc_length".into(), DataType::Float64);
-    schema.insert("m12".into(), DataType::Float64);
-    schema.insert("s12".into(), DataType::Float64);
+// The columns of the data file.
+const LAT_1: usize = 0;
+const LON_1: usize = 1;
+const AZI_1: usize = 2;
+const LAT_2: usize = 3;
+const LON_2: usize = 4;
+const AZI_2: usize = 5;
+const D_METRES: usize = 6;
+const D_DEGREES: usize = 7;
+// const M12: usize = 8;
+// const AREA: usize = 9;
 
-    // Read all of the columns of the geodesic data file
-    let lf = LazyCsvReader::new(PlPath::new(file_path))
-        .with_has_header(false)
-        .with_separator(b' ')
-        .with_schema(Some(Arc::new(schema)))
-        .finish()?
-        .collect()?;
-
-    Ok(lf)
-}
+const OUTPUT_FILE_PATH: &str = "icao_wgs84_data_rust.dat";
 
 /// Calculate the geodesic values for the given start and end point latitudes and longitudes.
 ///
@@ -98,121 +86,104 @@ fn calculate_geodesic_inverse_values(
 #[ignore]
 fn test_geodesic_examples() -> Result<(), Box<dyn std::error::Error>> {
     // Read GEODTEST_DIR/GeodTest.dat file and run tests
-    let filename = "GeodTest.dat.gz";
+    let filename = "GeodTest.dat";
     let dir_key = "GEODTEST_DIR";
 
     let p = env::var(dir_key).expect("Environment variable not found: GEODTEST_DIR");
     let path = Path::new(&p);
     let file_path = path.join(filename);
+    let mut csv_reader = ReaderBuilder::new()
+        .has_headers(false)
+        .delimiter(b' ')
+        .from_path(file_path)?;
 
-    let lf = read_geodesic_data_file(file_path.to_str().expect("Bad file_path"))?;
-    // println!("{lf}");
+    let mut csv_writer = WriterBuilder::new()
+        .has_headers(false)
+        .delimiter(b' ')
+        .from_path(OUTPUT_FILE_PATH)?;
 
     let start_time = Instant::now();
 
-    let length = lf.height();
-    let mut azi_v = Vec::with_capacity(length);
-    let mut end_azi_v = Vec::with_capacity(length);
-    let mut distance_v = Vec::with_capacity(length);
-    let mut arc_length_v = Vec::with_capacity(length);
-    let mut iterations_v = Vec::with_capacity(length);
-
     let mut index = 0;
-    lf.column("lat1")?
-        .f64()?
-        .into_no_null_iter()
-        .zip(lf.column("lat2")?.f64()?.into_no_null_iter())
-        .zip(lf.column("lon2")?.f64()?.into_no_null_iter())
-        .zip(lf.column("azi1")?.f64()?.into_no_null_iter())
-        .zip(lf.column("azi2")?.f64()?.into_no_null_iter())
-        .zip(lf.column("distance_metres")?.f64()?.into_no_null_iter())
-        .for_each(|(((((lat1, lat2), lon2), azi1), azi2), d_metres)| {
-            let (azi, end_azi, distance_m, arc_length, iterations) =
-                calculate_geodesic_inverse_values(lat1, 0.0, lat2, lon2);
+    for result in csv_reader.records() {
+        let record = result.unwrap();
 
-            // Convert azimuths to degrees
-            let azi = Degrees::from(azi).0;
-            let end_azi = Degrees::from(end_azi).0;
+        let lat1 = record[LAT_1].parse::<f64>().unwrap();
+        let lon1 = record[LON_1].parse::<f64>().unwrap();
+        let azi1 = record[AZI_1].parse::<f64>().unwrap();
+        let lat2 = record[LAT_2].parse::<f64>().unwrap();
+        let lon2 = record[LON_2].parse::<f64>().unwrap();
+        let azi2 = record[AZI_2].parse::<f64>().unwrap();
+        let d_metres = record[D_METRES].parse::<f64>().unwrap();
+        let _d_degrees = record[D_DEGREES].parse::<f64>().unwrap();
 
-            // Compare start azimuths
-            let delta_azimuth = (azi1 - azi).abs();
-            // reduce tolerance for entries running between or close to vertices
-            let azimuth_tolerance = if index <= 400000 { 5.331e-5 } else { 2.0e-2 };
-            if azimuth_tolerance < delta_azimuth {
+        let (azi, end_azi, distance_m, arc_length, iterations) =
+            calculate_geodesic_inverse_values(lat1, lon1, lat2, lon2);
+
+        // Convert azimuths to degrees
+        let azi = Degrees::from(azi).0;
+        let end_azi = Degrees::from(end_azi).0;
+
+        // Compare start azimuths
+        let delta_azimuth = (azi1 - azi).abs();
+        // reduce tolerance for entries running between or close to vertices
+        let azimuth_tolerance = if index <= 400000 { 5.331e-5 } else { 2.0e-2 };
+        if azimuth_tolerance < delta_azimuth {
+            panic!(
+                "azimuth, line: {:?} lat1: {:?} delta: {:?} azimuth: {:?} calculated: {:?} delta_long: {:?} ",
+                index, lat1, delta_azimuth, azi1, azi, lon2
+            );
+        }
+
+        // Compare end_azimuths
+        let delta_azimuth = (azi2 - end_azi).abs();
+        if azimuth_tolerance < delta_azimuth {
+            panic!(
+                "end azimuth, line: {:?} delta: {:?} azimuth: {:?} delta_long: {:?} ",
+                index, delta_azimuth, azi2, lon2
+            );
+        }
+
+        // Compare geodesic distances
+        let delta_length_m = (d_metres - distance_m.0).abs();
+        // if a short geodesic, test delta length, not delta length ratio
+        if index >= 150000 && index < 200000 {
+            if 3.5e-9 < delta_length_m {
                 panic!(
-                    "azimuth, line: {:?} lat1: {:?} delta: {:?} azimuth: {:?} calculated: {:?} delta_long: {:?} ",
-                    index, lat1, delta_azimuth, azi1, azi, lon2
+                    "length, line: {:?} delta: {:?} length: {:?} result: {:?} ",
+                    index, delta_length_m, d_metres, distance_m
                 );
             }
-
-            // Compare end_azimuths
-            let delta_azimuth = (azi2 - end_azi).abs();
-            if azimuth_tolerance < delta_azimuth {
+        } else {
+            let delta_length_m_ratio = delta_length_m / d_metres;
+            if 9.0e-13 < delta_length_m_ratio {
                 panic!(
-                    "end azimuth, line: {:?} delta: {:?} azimuth: {:?} delta_long: {:?} ",
-                    index, delta_azimuth, azi2, lon2
+                    "length, line: {:?} delta ratio: {:?} length: {:?} result: {:?} ",
+                    index, delta_length_m_ratio, d_metres, distance_m
                 );
             }
+        }
 
-            // Compare geodesic distances
-            let delta_length_m = (d_metres - distance_m.0).abs();
-            // if a short geodesic, test delta length, not delta length ratio
-            if index >= 150000 && index < 200000 {
-                if 3.5e-9 < delta_length_m {
-                    panic!(
-                        "length, line: {:?} delta: {:?} length: {:?} result: {:?} ",
-                        index, delta_length_m, d_metres, distance_m
-                    );
-                }
-            } else {
-                let delta_length_m_ratio = delta_length_m / d_metres;
-                if 9.0e-13 < delta_length_m_ratio {
-                    panic!(
-                        "length, line: {:?} delta ratio: {:?} length: {:?} result: {:?} ",
-                        index, delta_length_m_ratio, d_metres, distance_m
-                    );
-                }
-            }
+        // Output the values to a data file in the same format as the input file
+        let fields: [String; 9] = [
+            record[LAT_1].to_owned(),
+            record[LON_1].to_owned(),
+            azi.to_string(),
+            record[LAT_2].to_owned(),
+            record[LON_2].to_owned(),
+            end_azi.to_string(),
+            distance_m.0.to_string(),
+            arc_length.0.to_degrees().to_string(),
+            iterations.to_string(),
+        ];
+        csv_writer.write_record(&fields)?;
 
-            // push values into vectors
-            azi_v.push(azi);
-            end_azi_v.push(end_azi);
-            distance_v.push(distance_m.0);
-            arc_length_v.push(arc_length.0.to_degrees());
-            iterations_v.push(iterations);
+        index += 1;
+    }
 
-            index += 1;
-        });
-
-    let azi_column = Column::new("azi".into(), azi_v);
-    let end_azi_column = Column::new("end_azi`".into(), end_azi_v);
-    let distance_column = Column::new("distance_m".into(), distance_v);
-    let arc_length_column = Column::new("arc_length".into(), arc_length_v);
-    let iterations_column = Column::new("iterations".into(), iterations_v);
-    let mut df = DataFrame::new(vec![
-        lf.column("lat1")?.clone(),
-        lf.column("lon1")?.clone(),
-        azi_column,
-        lf.column("lat2")?.clone(),
-        lf.column("lon2")?.clone(),
-        end_azi_column,
-        distance_column,
-        arc_length_column,
-        iterations_column,
-    ])?;
-
-    // println!("{df}");
     println!("Elapsed time: {:.3?}", start_time.elapsed());
 
-    // Output the values to a data file in the same format as the input file
-    let output_file_name: String = "icao_wgs84_data_rust.dat".to_owned();
-    let mut file =
-        std::fs::File::create(&output_file_name).expect("Could not write to output file");
-    CsvWriter::new(&mut file)
-        .include_header(false)
-        .with_separator(b' ')
-        .finish(&mut df)?;
-    println!("Written inverse geodesic values to: {}", &output_file_name);
+    csv_writer.flush()?;
 
     Ok(())
 }
