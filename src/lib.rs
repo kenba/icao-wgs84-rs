@@ -1,4 +1,4 @@
-// Copyright (c) 2024-2025 Ken Barker
+// Copyright (c) 2024-2026 Ken Barker
 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"),
@@ -924,7 +924,7 @@ impl<'a> GeodesicSegment<'a> {
         let (atd, xtd, _) = self.calculate_sphere_atd_and_xtd(beta, lon, precision);
 
         // if the position is beside the geodesic segment
-        if unit_sphere::vector::intersection::is_alongside(atd, self.arc_length, precision) {
+        if (-precision <= atd) && (atd <= self.arc_length + precision) {
             if xtd.abs() < precision {
                 Metres(0.0)
             } else {
@@ -1120,8 +1120,11 @@ pub fn calculate_intersection_distances(
 ) -> (Radians, Radians) {
     let precision = Radians(precision.0 / g1.ellipsoid().a().0);
     let (distance1, distance2, _, _) =
-        intersection::calculate_sphere_intersection_distances(g1, g2, precision);
-    (distance1, distance2)
+        intersection::calculate_arc_reference_distances_and_angle(g1, g2, precision);
+    (
+        distance1 + g1.arc_length().half(),
+        distance2 + g2.arc_length().half(),
+    )
 }
 
 /// Calculate the position (Latitude and Longitude) where a pair of `GeodesicSegment`s
@@ -1165,14 +1168,22 @@ pub fn calculate_intersection_point(
     precision: Metres,
 ) -> Option<LatLong> {
     let precision = Radians(precision.0 / g1.ellipsoid().a().0);
-    let (distance1, distance2, _, _) =
-        intersection::calculate_sphere_intersection_distances(g1, g2, precision);
+    let (distance1, distance2, angle, _) =
+        intersection::calculate_arc_reference_distances_and_angle(g1, g2, precision);
 
-    // Determine whether both distances are within both `GeodesicSegment`s.
-    if unit_sphere::vector::intersection::is_alongside(distance1, g1.arc_length(), precision)
-        && unit_sphere::vector::intersection::is_alongside(distance2, g2.arc_length(), precision)
-    {
-        let distance = distance1.clamp(g1.arc_length());
+    let segments_are_coincident = angle.sin().0 == 0.0;
+    let segments_intersect_or_overlap = if segments_are_coincident {
+        // do coincident segments overlap?
+        distance1.abs() + distance2.abs()
+            <= g1.arc_length().half() + g2.arc_length().half() + precision
+    } else {
+        // do geodesic paths intersect inside both segments
+        (distance1.abs() <= g1.arc_length().half() + precision)
+            && distance2.abs() <= (g2.arc_length().half() + precision)
+    };
+
+    if segments_intersect_or_overlap {
+        let distance = (distance1 + g1.arc_length().half()).clamp(g1.arc_length());
         Some(g1.arc_lat_long(distance))
     } else {
         None
@@ -1735,5 +1746,28 @@ mod tests {
 
         let result = calculate_intersection_point(&g1, &g2, Metres(1e-3));
         assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_intersection_coincident_geodesic_paths() {
+        let south_pole_1 = LatLong::new(Degrees(-88.0), Degrees(-180.0));
+        let south_pole_2 = LatLong::new(Degrees(-87.0), Degrees(0.0));
+
+        let g_0 = GeodesicSegment::from((&south_pole_1, &south_pole_2));
+
+        let intersection_lengths = calculate_intersection_distances(&g_0, &g_0, Metres(1e-3));
+        assert_eq!(g_0.arc_length().half(), intersection_lengths.0);
+        assert_eq!(g_0.arc_length().half(), intersection_lengths.1);
+
+        let intersection_point = calculate_intersection_point(&g_0, &g_0, Metres(1e-3));
+        let lat_lon = intersection_point.unwrap();
+        assert!(is_within_tolerance(-89.5, lat_lon.lat().0, 1e-5));
+        assert_eq!(0.0, lat_lon.lon().0);
+
+        let south_pole_3 = LatLong::new(Degrees(-85.0), Degrees(0.0));
+        let south_pole_4 = LatLong::new(Degrees(-86.0), Degrees(0.0));
+        let g_1 = GeodesicSegment::from((&south_pole_3, &south_pole_4));
+        let intersection_point = calculate_intersection_point(&g_0, &g_1, Metres(1e-3));
+        assert!(intersection_point.is_none());
     }
 }
