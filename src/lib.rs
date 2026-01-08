@@ -981,25 +981,25 @@ impl<'a> GeodesicSegment<'a> {
     ///
     /// let istanbul = LatLong::new(Degrees(42.0), Degrees(29.0));
     /// let washington = LatLong::new(Degrees(39.0), Degrees(-77.0));
-    /// let g1 = GeodesicSegment::between_positions(&istanbul, &washington, Metres(0.0), tolerance, &WGS84_ELLIPSOID);
+    /// let g_0 = GeodesicSegment::between_positions(&istanbul, &washington, Metres(0.0), tolerance, &WGS84_ELLIPSOID);
     ///
-    /// let azimuth_degrees = Degrees::from(g1.azimuth(Metres(0.0)));
+    /// let azimuth_degrees = Degrees::from(g_0.azimuth(Metres(0.0)));
     /// println!("Istanbul-Washington initial azimuth: {:?}", azimuth_degrees.0);
     ///
-    /// let distance_nm = NauticalMiles::from(g1.length());
+    /// let distance_nm = NauticalMiles::from(g_0.length());
     /// println!("Istanbul-Washington distance: {:?}", distance_nm);
     ///
     /// let reyjavik = LatLong::new(Degrees(64.0), Degrees(-22.0));
     ///
     /// // Calculate geodesic along track and across track distances to 1mm precision.
-    /// let (atd, xtd, iterations) = g1.calculate_atd_and_xtd(&reyjavik, Metres(1e-3));
+    /// let (atd, xtd, iterations) = g_0.calculate_atd_and_xtd(&reyjavik, Metres(1e-3));
     /// assert!(is_within_tolerance(3928788.572, atd.0, 1e-3));
     /// assert!(is_within_tolerance(-1010585.9988368, xtd.0, 1e-3));
     /// println!("calculate_atd_and_xtd iterations: {:?}", iterations);
     ///
     /// // The expected latitude and longitude are from:
     /// // <https://sourceforge.net/p/geographiclib/discussion/1026621/thread/21aaff9f/#8a93>
-    /// let position = g1.lat_long(atd);
+    /// let position = g_0.lat_long(atd);
     /// assert!(is_within_tolerance(
     ///     54.92853149711691,
     ///     Degrees::from(position.lat()).0,
@@ -1102,7 +1102,7 @@ impl From<(&LatLong, &LatLong)> for GeodesicSegment<'_> {
 
 /// Calculate the distances along a pair of `GeodesicSegment`s (in Radians)
 /// to their closest intersection or reference points.
-/// * `g1`, `g2` the Geodesic`GeodesicSegment`s.
+/// * `g_0`, `g_1` the Geodesic`GeodesicSegment`s.
 /// * `precision` the precision in `Metres`
 ///
 /// returns the distances along the `GeodesicSegment`s to the intersection
@@ -1114,22 +1114,22 @@ impl From<(&LatLong, &LatLong)> for GeodesicSegment<'_> {
 /// The function will panic if the Geodesics are **not** on the same `Ellipsoid`.
 #[must_use]
 pub fn calculate_intersection_distances(
-    g1: &GeodesicSegment,
-    g2: &GeodesicSegment,
+    g_0: &GeodesicSegment,
+    g_1: &GeodesicSegment,
     precision: Metres,
 ) -> (Radians, Radians) {
-    let precision = Radians(precision.0 / g1.ellipsoid().a().0);
+    let precision = Radians(precision.0 / g_0.ellipsoid().a().0);
     let (distance1, distance2, _, _) =
-        intersection::calculate_arc_reference_distances_and_angle(g1, g2, precision);
+        intersection::calculate_arc_reference_distances_and_angle(g_0, g_1, precision);
     (
-        distance1 + g1.arc_length().half(),
-        distance2 + g2.arc_length().half(),
+        distance1 + g_0.arc_length().half(),
+        distance2 + g_1.arc_length().half(),
     )
 }
 
 /// Calculate the position (Latitude and Longitude) where a pair of `GeodesicSegment`s
 /// intersect, or None if the `GeodesicSegment`s do not intersect.
-/// * `g1`, `g2` the `GeodesicSegment`s.
+/// * `g_0`, `g_1` the `GeodesicSegment`s.
 /// * `precision` the precision in `Metres`
 ///
 /// returns the distances along the `GeodesicSegment`s to the intersection point
@@ -1149,13 +1149,13 @@ pub fn calculate_intersection_distances(
 /// let reyjavik = LatLong::new(Degrees(64.0), Degrees(-22.0));
 /// let accra = LatLong::new(Degrees(6.0), Degrees(0.0));
 ///
-/// let g1 = GeodesicSegment::from((&istanbul, &washington));
-/// let g2 = GeodesicSegment::from((&reyjavik, &accra));
+/// let g_0 = GeodesicSegment::from((&istanbul, &washington));
+/// let g_1 = GeodesicSegment::from((&reyjavik, &accra));
 ///
 /// // Calculate the intersection point position
 /// // The expected latitude and longitude are from:
 /// // <https://sourceforge.net/p/geographiclib/discussion/1026621/thread/21aaff9f/#fe0a>
-/// let result = calculate_intersection_point(&g1, &g2, Metres(1e-3));
+/// let result = calculate_intersection_point(&g_0, &g_1, Metres(1e-3));
 /// let lat_lon = result.unwrap();
 ///
 /// assert!(is_within_tolerance(54.7170296089477, lat_lon.lat().0, 1e-6));
@@ -1163,28 +1163,28 @@ pub fn calculate_intersection_distances(
 /// ```
 #[must_use]
 pub fn calculate_intersection_point(
-    g1: &GeodesicSegment,
-    g2: &GeodesicSegment,
+    g_0: &GeodesicSegment,
+    g_1: &GeodesicSegment,
     precision: Metres,
 ) -> Option<LatLong> {
-    let precision = Radians(precision.0 / g1.ellipsoid().a().0);
+    let precision = Radians(precision.0 / g_0.ellipsoid().a().0);
     let (distance1, distance2, angle, _) =
-        intersection::calculate_arc_reference_distances_and_angle(g1, g2, precision);
+        intersection::calculate_arc_reference_distances_and_angle(g_0, g_1, precision);
 
     let segments_are_coincident = angle.sin().0 == 0.0;
     let segments_intersect_or_overlap = if segments_are_coincident {
         // do coincident segments overlap?
         distance1.abs() + distance2.abs()
-            <= g1.arc_length().half() + g2.arc_length().half() + precision
+            <= g_0.arc_length().half() + g_1.arc_length().half() + precision
     } else {
         // do geodesic paths intersect inside both segments
-        (distance1.abs() <= g1.arc_length().half() + precision)
-            && distance2.abs() <= (g2.arc_length().half() + precision)
+        (distance1.abs() <= g_0.arc_length().half() + precision)
+            && distance2.abs() <= (g_1.arc_length().half() + precision)
     };
 
     if segments_intersect_or_overlap {
-        let distance = (distance1 + g1.arc_length().half()).clamp(g1.arc_length());
-        Some(g1.arc_lat_long(distance))
+        let distance = (distance1 + g_0.arc_length().half()).clamp(g_0.arc_length());
+        Some(g_0.arc_lat_long(distance))
     } else {
         None
     }
@@ -1397,21 +1397,21 @@ mod tests {
 
         let tolerance = Radians(great_circle::MIN_VALUE);
 
-        let g1 = GeodesicSegment::between_positions(
+        let g_0 = GeodesicSegment::between_positions(
             &istanbul,
             &washington,
             Metres(0.0),
             tolerance,
             &WGS84_ELLIPSOID,
         );
-        assert!(g1.is_valid());
-        assert_eq!(Metres(0.0), g1.half_width());
+        assert!(g_0.is_valid());
+        assert_eq!(Metres(0.0), g_0.half_width());
 
-        let end_azimuth = Degrees::from(g1.azimuth(g1.length()));
+        let end_azimuth = Degrees::from(g_0.azimuth(g_0.length()));
         assert_eq!(-132.2646607116376, end_azimuth.0);
 
-        let mut g1_clone = g1.clone();
-        assert_eq!(g1_clone, g1);
+        let mut g1_clone = g_0.clone();
+        assert_eq!(g1_clone, g_0);
 
         let g1_clone = g1_clone.set_arc_length(Radians(1.0));
         assert_eq!(Radians(1.0), g1_clone.arc_length());
@@ -1423,16 +1423,16 @@ mod tests {
         // test start position
         assert!(is_within_tolerance(
             42.0,
-            Degrees::from(WGS84_ELLIPSOID.calculate_geodetic_latitude(g1.beta())).0,
+            Degrees::from(WGS84_ELLIPSOID.calculate_geodetic_latitude(g_0.beta())).0,
             32.0 * f64::EPSILON
         ));
         assert!(is_within_tolerance(
             29.0,
-            Degrees::from(g1.lon()).0,
+            Degrees::from(g_0.lon()).0,
             16.0 * f64::EPSILON
         ));
 
-        let lat_long: LatLong = g1.lat_long(Metres(0.0));
+        let lat_long: LatLong = g_0.lat_long(Metres(0.0));
         // assert_eq!(istanbul, lat_long);
         assert!(is_within_tolerance(
             istanbul.lat().0,
@@ -1446,11 +1446,11 @@ mod tests {
         ));
 
         // test start point
-        let start_point = g1.arc_point(Radians(0.0));
+        let start_point = g_0.arc_point(Radians(0.0));
         assert!(is_within_tolerance(
             istanbul.lat().0,
             Degrees::from(
-                g1.ellipsoid()
+                g_0.ellipsoid()
                     .calculate_geodetic_latitude(unit_sphere::vector::latitude(&start_point))
             )
             .0,
@@ -1463,36 +1463,36 @@ mod tests {
         ));
 
         let precision = Metres(1e-3);
-        let (atd, xtd, iterations) = g1.calculate_atd_and_xtd(&istanbul, precision);
+        let (atd, xtd, iterations) = g_0.calculate_atd_and_xtd(&istanbul, precision);
         println!("calculate_atd_and_xtd iterations: {:?}", iterations);
         assert_eq!(0.0, atd.0);
         assert_eq!(0.0, xtd.0);
 
-        let distance = g1.shortest_distance(&istanbul, precision);
+        let distance = g_0.shortest_distance(&istanbul, precision);
         assert_eq!(0.0, distance.0);
 
         // test end position
-        let arc_length = g1.arc_length();
+        let arc_length = g_0.arc_length();
         assert_eq!(1.309412846249522, arc_length.0);
 
-        let length = g1.length();
+        let length = g_0.length();
         assert_eq!(8339863.136005359, length.0);
 
-        // let end_position = g1.arc_lat_long(arc_length);
+        // let end_position = g_0.arc_lat_long(arc_length);
         assert!(is_within_tolerance(
             39.0,
-            Degrees::from(g1.latitude(length)).0,
+            Degrees::from(g_0.latitude(length)).0,
             32.0 * f64::EPSILON
         ));
         assert!(is_within_tolerance(
             -77.0,
-            Degrees::from(g1.longitude(length)).0,
+            Degrees::from(g_0.longitude(length)).0,
             256.0 * f64::EPSILON
         ));
 
         // test mid position
         let half_length = length.half();
-        let mid_position = g1.lat_long(half_length);
+        let mid_position = g_0.lat_long(half_length);
 
         assert!(is_within_tolerance(
             54.86379153725445,
@@ -1506,11 +1506,11 @@ mod tests {
             128.0 * f64::EPSILON
         ));
 
-        let mid_length = g1.metres_to_radians(half_length);
+        let mid_length = g_0.metres_to_radians(half_length);
         assert_eq!(0.654673165141749, mid_length.0);
-        let mid_point = g1.mid_point();
+        let mid_point = g_0.mid_point();
         let mid_beta = unit_sphere::vector::latitude(&mid_point);
-        let mid_lat = g1.ellipsoid().calculate_geodetic_latitude(mid_beta);
+        let mid_lat = g_0.ellipsoid().calculate_geodetic_latitude(mid_beta);
         assert!(is_within_tolerance(
             54.86379153725445,
             Degrees::from(mid_lat).0,
@@ -1526,38 +1526,38 @@ mod tests {
 
         let precision_r = Radians(1e-3 / WGS84_ELLIPSOID.a().0);
         let (atd, xtd, iterations) =
-            g1.calculate_sphere_atd_and_xtd(mid_beta, mid_lon, precision_r);
+            g_0.calculate_sphere_atd_and_xtd(mid_beta, mid_lon, precision_r);
         assert!(is_within_tolerance(mid_length.0, atd.0, f64::EPSILON));
         assert_eq!(0.0, xtd.0);
         println!("calculate_sphere_atd_and_xtd iterations: {:?}", iterations);
 
-        let (atd, xtd, iterations) = g1.calculate_atd_and_xtd(&mid_position, precision);
+        let (atd, xtd, iterations) = g_0.calculate_atd_and_xtd(&mid_position, precision);
         assert!(is_within_tolerance(half_length.0, atd.0, 1e-3));
         assert!(xtd.0.abs() < 1e-3);
         println!("calculate_atd_and_xtd iterations: {:?}", iterations);
 
-        let distance = g1.shortest_distance(&mid_position, precision);
+        let distance = g_0.shortest_distance(&mid_position, precision);
         assert_eq!(0.0, distance.0);
 
-        let g2 = g1.reverse();
-        assert_eq!(g1.arc_length(), g2.arc_length());
-        assert_eq!(g1.length(), g2.length());
+        let g_1 = g_0.reverse();
+        assert_eq!(g_0.arc_length(), g_1.arc_length());
+        assert_eq!(g_0.length(), g_1.length());
         assert_eq!(
             washington.lat().0,
-            Degrees::from(g2.arc_latitude(Radians::default())).0
+            Degrees::from(g_1.arc_latitude(Radians::default())).0
         );
         assert_eq!(
             washington.lon().0,
-            Degrees::from(g2.arc_longitude(Radians(0.0))).0
+            Degrees::from(g_1.arc_longitude(Radians(0.0))).0
         );
         assert!(is_within_tolerance(
             istanbul.lat().0,
-            Degrees::from(g2.arc_latitude(g2.arc_length())).0,
+            Degrees::from(g_1.arc_latitude(g_1.arc_length())).0,
             64.0 * f64::EPSILON
         ));
         assert!(is_within_tolerance(
             istanbul.lon().0,
-            Degrees::from(g2.arc_longitude(g2.arc_length())).0,
+            Degrees::from(g_1.arc_longitude(g_1.arc_length())).0,
             64.0 * f64::EPSILON
         ));
     }
@@ -1567,16 +1567,16 @@ mod tests {
         // A GeodesicSegment along the Greenwich meridian, over the North pole and down the IDL
         let a = LatLong::new(Degrees(45.0), Degrees(0.0));
         let b = LatLong::new(Degrees(45.0), Degrees(180.0));
-        let g1 = GeodesicSegment::from((&a, &b));
-        let pole0 = g1.arc_pole(Radians(0.0));
+        let g_0 = GeodesicSegment::from((&a, &b));
+        let pole0 = g_0.arc_pole(Radians(0.0));
 
         // Calculate the azimuth at the North pole
-        let mid_length = g1.arc_length().half();
-        let azimuth = Degrees::from(g1.arc_azimuth(Angle::from(mid_length)));
+        let mid_length = g_0.arc_length().half();
+        let azimuth = Degrees::from(g_0.arc_azimuth(Angle::from(mid_length)));
         assert_eq!(180.0, azimuth.0);
 
         // Calculate the point and great circle pole at the North pole
-        let (point1, pole1) = g1.arc_point_and_pole(mid_length);
+        let (point1, pole1) = g_0.arc_point_and_pole(mid_length);
         assert_eq!(Vector3d::new(0.5 * f64::EPSILON, 0.0, 1.0), point1);
         assert_eq!(pole0, pole1);
     }
@@ -1585,28 +1585,28 @@ mod tests {
     fn test_geodesicarc_90n_0n_0e() {
         let a = LatLong::new(Degrees(90.0), Degrees(0.0));
         let b = LatLong::new(Degrees(0.0), Degrees(0.0));
-        let g1 = GeodesicSegment::from((&a, &b));
+        let g_0 = GeodesicSegment::from((&a, &b));
 
         assert!(is_within_tolerance(
             core::f64::consts::FRAC_PI_2,
-            g1.arc_length().0,
+            g_0.arc_length().0,
             f64::EPSILON
         ));
-        assert_eq!(180.0, Degrees::from(g1.azi()).0);
+        assert_eq!(180.0, Degrees::from(g_0.azi()).0);
     }
 
     #[test]
     fn test_geodesicarc_90s_0n_50e() {
         let a = LatLong::new(Degrees(-90.0), Degrees(0.0));
         let b = LatLong::new(Degrees(0.0), Degrees(50.0));
-        let g1 = GeodesicSegment::from((&a, &b));
+        let g_0 = GeodesicSegment::from((&a, &b));
 
         assert!(is_within_tolerance(
             core::f64::consts::FRAC_PI_2,
-            g1.arc_length().0,
+            g_0.arc_length().0,
             f64::EPSILON
         ));
-        assert_eq!(0.0, Degrees::from(g1.azi()).0);
+        assert_eq!(0.0, Degrees::from(g_0.azi()).0);
     }
 
     #[test]
@@ -1615,21 +1615,21 @@ mod tests {
         // Istanbul, Washington and Reyjavik
         let istanbul = LatLong::new(Degrees(42.0), Degrees(29.0));
         let washington = LatLong::new(Degrees(39.0), Degrees(-77.0));
-        let g1 = GeodesicSegment::from((&istanbul, &washington));
+        let g_0 = GeodesicSegment::from((&istanbul, &washington));
 
         let reyjavik = LatLong::new(Degrees(64.0), Degrees(-22.0));
 
         // Calculate geodesic along track and across track distances to 1mm precision.
         let precision = Metres(1e-3);
 
-        let (atd, xtd, iterations) = g1.calculate_atd_and_xtd(&reyjavik, precision);
+        let (atd, xtd, iterations) = g_0.calculate_atd_and_xtd(&reyjavik, precision);
         assert!(is_within_tolerance(3928788.572, atd.0, precision.0));
         assert!(is_within_tolerance(-1010585.9988368, xtd.0, precision.0));
         println!("calculate_atd_and_xtd iterations: {:?}", iterations);
 
         // Karney's latitude and longitude from Final result at:
         // https://sourceforge.net/p/geographiclib/discussion/1026621/thread/21aaff9f/#8a93
-        let position = g1.lat_long(atd);
+        let position = g_0.lat_long(atd);
         assert!(is_within_tolerance(
             54.92853149711691,
             Degrees::from(position.lat()).0,
@@ -1642,9 +1642,9 @@ mod tests {
         ));
 
         // Test delta_azimuth at interception, should be PI/2
-        let azimuth_1 = g1.azimuth(atd);
-        let g2 = GeodesicSegment::from((&position, &reyjavik));
-        let azimuth_2 = g2.azi();
+        let azimuth_1 = g_0.azimuth(atd);
+        let g_1 = GeodesicSegment::from((&position, &reyjavik));
+        let azimuth_2 = g_1.azi();
         let delta_azimuth = azimuth_2 - azimuth_1;
         assert!(is_within_tolerance(
             core::f64::consts::FRAC_PI_2,
@@ -1653,10 +1653,10 @@ mod tests {
         ));
 
         // opposite geodesic
-        let g1 = GeodesicSegment::from((&washington, &istanbul));
-        let (atd, xtd, iterations) = g1.calculate_atd_and_xtd(&reyjavik, precision);
+        let g_0 = GeodesicSegment::from((&washington, &istanbul));
+        let (atd, xtd, iterations) = g_0.calculate_atd_and_xtd(&reyjavik, precision);
         assert!(is_within_tolerance(
-            g1.length().0 - 3928788.572,
+            g_0.length().0 - 3928788.572,
             atd.0,
             precision.0
         ));
@@ -1664,7 +1664,7 @@ mod tests {
         println!("calculate_atd_and_xtd iterations: {:?}", iterations);
 
         let reyjavik = LatLong::new(Degrees(64.0), Degrees(-22.0));
-        let distance = g1.shortest_distance(&reyjavik, precision);
+        let distance = g_0.shortest_distance(&reyjavik, precision);
         assert!(is_within_tolerance(
             1010585.998836817,
             distance.0,
@@ -1672,7 +1672,7 @@ mod tests {
         ));
 
         let accra = LatLong::new(Degrees(6.0), Degrees(0.0));
-        let distance = g1.shortest_distance(&accra, precision);
+        let distance = g_0.shortest_distance(&accra, precision);
         assert!(is_within_tolerance(
             4891211.398445355,
             distance.0,
@@ -1680,7 +1680,7 @@ mod tests {
         ));
 
         let chicago = LatLong::new(Degrees(42.0), Degrees(-88.0));
-        let distance = g1.shortest_distance(&chicago, precision);
+        let distance = g_0.shortest_distance(&chicago, precision);
         assert!(is_within_tolerance(
             989277.1859906457,
             distance.0,
@@ -1688,7 +1688,7 @@ mod tests {
         ));
 
         let singapore = LatLong::new(Degrees(1.0), Degrees(104.0));
-        let distance = g1.shortest_distance(&singapore, precision);
+        let distance = g_0.shortest_distance(&singapore, precision);
         assert!(is_within_tolerance(
             8699538.22763653,
             distance.0,
@@ -1705,14 +1705,14 @@ mod tests {
         let reyjavik = LatLong::new(Degrees(64.0), Degrees(-22.0));
         let accra = LatLong::new(Degrees(6.0), Degrees(0.0));
 
-        let g1 = GeodesicSegment::from((&istanbul, &washington));
-        let g2 = GeodesicSegment::from((&reyjavik, &accra));
+        let g_0 = GeodesicSegment::from((&istanbul, &washington));
+        let g_1 = GeodesicSegment::from((&reyjavik, &accra));
 
-        let (d1, d2) = calculate_intersection_distances(&g1, &g2, Metres(1e-3));
+        let (d1, d2) = calculate_intersection_distances(&g_0, &g_1, Metres(1e-3));
         assert!(is_within_tolerance(0.5423772210673643, d1.0, 1e-6));
         assert!(is_within_tolerance(0.17504915893226164, d2.0, 1e-6));
 
-        let result = calculate_intersection_point(&g1, &g2, Metres(1e-3));
+        let result = calculate_intersection_point(&g_0, &g_1, Metres(1e-3));
         let lat_lon = result.unwrap();
 
         assert!(is_within_tolerance(54.7170296089477, lat_lon.lat().0, 1e-6));
@@ -1723,7 +1723,7 @@ mod tests {
         ));
 
         // Swap geodesics
-        let result = calculate_intersection_point(&g2, &g1, Metres(1e-3));
+        let result = calculate_intersection_point(&g_1, &g_0, Metres(1e-3));
         let lat_lon = result.unwrap();
 
         assert!(is_within_tolerance(54.7170296089477, lat_lon.lat().0, 1e-6));
@@ -1741,10 +1741,10 @@ mod tests {
         let reyjavik = LatLong::new(Degrees(64.0), Degrees(-22.0));
         let accra = LatLong::new(Degrees(6.0), Degrees(0.0));
 
-        let g1 = GeodesicSegment::from((&istanbul, &accra));
-        let g2 = GeodesicSegment::from((&reyjavik, &washington));
+        let g_0 = GeodesicSegment::from((&istanbul, &accra));
+        let g_1 = GeodesicSegment::from((&reyjavik, &washington));
 
-        let result = calculate_intersection_point(&g1, &g2, Metres(1e-3));
+        let result = calculate_intersection_point(&g_0, &g_1, Metres(1e-3));
         assert!(result.is_none());
     }
 
