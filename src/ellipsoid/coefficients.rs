@@ -169,6 +169,15 @@ pub fn evaluate_coeffs_c3x(n: f64) -> [f64; 15] {
     ]
 }
 
+/// Evaluate a first degree polynomial in x using
+/// [Estrin's scheme](https://en.wikipedia.org/wiki/Estrin%27s_scheme).
+/// * `coeffs` - the polynomial coefficients.
+/// * `x` - the variable.
+#[must_use]
+fn evaluate_2_coeffs(coeffs: &[f64], x: f64, ) -> f64 {
+    x.mul_add(coeffs[1], coeffs[0])
+}
+
 /// Evaluate the polynomial in x using
 /// [Horner's method](https://en.wikipedia.org/wiki/Horner%27s_method).
 /// * `coeffs` - the polynomial coefficients.
@@ -177,10 +186,16 @@ pub fn evaluate_coeffs_c3x(n: f64) -> [f64; 15] {
 pub fn evaluate_polynomial(coeffs: &[f64], x: f64) -> f64 {
     let mut result: f64 = 0.;
 
-    if let Some((last, elements)) = coeffs.split_last() {
-        result = *last;
-        for element in elements.iter().rev() {
-            result = result.mul_add(x, *element);
+    match coeffs.len() {
+        // Use Estrin's scheme for 2 coefficients, since same result as Horner's method
+        2 => result = evaluate_2_coeffs(coeffs, x),
+        _ => {
+            if let Some((last, elements)) = coeffs.split_last() {
+                result = *last;
+                for element in elements.iter().rev() {
+                    result = result.mul_add(x, *element);
+                }
+            }
         }
     }
 
