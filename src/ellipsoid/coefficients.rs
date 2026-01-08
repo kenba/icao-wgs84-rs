@@ -1,4 +1,4 @@
-// Copyright (c) 2024-2025 Ken Barker
+// Copyright (c) 2024-2026 Ken Barker
 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"),
@@ -180,7 +180,7 @@ pub fn evaluate_polynomial(coeffs: &[f64], x: f64) -> f64 {
     if let Some((last, elements)) = coeffs.split_last() {
         result = *last;
         for element in elements.iter().rev() {
-            result = x * result + *element;
+            result = result.mul_add(x, *element);
         }
     }
 
@@ -233,14 +233,14 @@ pub fn sin_cos_series(coeffs: &[f64], angle: Angle) -> Radians {
         if !coeffs_length_is_odd {
             index -= 1;
         }
-        let mut k0 = coeffs[index] + ar * k1;
+        let mut k0 = ar.mul_add(k1, coeffs[index]);
         index -= 1;
 
         // Unroll loop x 2, so accumulators return to their original role.
         while 0 < index {
-            k1 = coeffs[index] + (ar * k0 - k1);
+            k1 = coeffs[index] + ar.mul_add(k0, -k1);
             index -= 1;
-            k0 = coeffs[index] + (ar * k1 - k0);
+            k0 = coeffs[index] + ar.mul_add(k1, -k0);
             index -= 1;
         }
         Radians(angle2x.sin().0 * k0)
