@@ -7,7 +7,7 @@
 [![codecov](https://codecov.io/gh/kenba/icao-wgs84-rs/graph/badge.svg?token=85TJX5VAHF)](https://codecov.io/gh/kenba/icao-wgs84-rs)
 
 A library for performing geometric calculations on the
-[WGS-84](https://www.icao.int/NACC/Documents/Meetings/2014/ECARAIM/REF08-Doc9674.pdf)
+[WGS-84](https://via-technology.aero/img/navigation/REF08-Doc9674.pdf)
 ellipsoid, see *Figure 1*.
 
 <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/3/3e/WGS84_mean_Earth_radius.svg/800px-WGS84_mean_Earth_radius.svg.png" width="400">
@@ -15,12 +15,12 @@ ellipsoid, see *Figure 1*.
 *Figure 1 The WGS-84 Ellipsoid (not to scale)  
 [Cmglee](https://commons.wikimedia.org/wiki/User:Cmglee), [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0), via Wikimedia Commons*
 
-[WGS-84](https://www.icao.int/NACC/Documents/Meetings/2014/ECARAIM/REF08-Doc9674.pdf)
+[WGS-84](https://via-technology.aero/img/navigation/REF08-Doc9674.pdf)
 has become the de facto standard for satellite navigation since its adoption
 by the Navstar Global Positioning System ([GPS](https://www.gps.gov/systems/gps/performance/accuracy/)) and the USA making GPS available for civilian use in 1983.
 
 This library uses the WGS-84 primary parameters defined in Table 3-1 of the
-[ICAO WGS-84 Implementation Manual](https://www.icao.int/NACC/Documents/Meetings/2014/ECARAIM/REF08-Doc9674.pdf).
+[ICAO WGS-84 Implementation Manual](https://via-technology.aero/img/navigation/REF08-Doc9674.pdf).
 
 ## Geodesic navigation
 
