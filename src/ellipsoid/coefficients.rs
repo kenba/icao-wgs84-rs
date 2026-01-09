@@ -174,7 +174,7 @@ pub fn evaluate_coeffs_c3x(n: f64) -> [f64; 15] {
 /// * `coeffs` - the polynomial coefficients.
 /// * `x` - the variable.
 #[must_use]
-fn evaluate_2_coeffs(coeffs: &[f64], x: f64, ) -> f64 {
+fn evaluate_2_coeffs(coeffs: &[f64], x: f64) -> f64 {
     x.mul_add(coeffs[1], coeffs[0])
 }
 
@@ -208,19 +208,16 @@ pub fn evaluate_polynomial(coeffs: &[f64], x: f64) -> f64 {
 /// * `eps` - epsilon the integration variable derived from Clairaut's constant.
 #[must_use]
 pub fn evaluate_coeffs_c3y(coeffs: &[f64], eps: f64) -> [f64; 6] {
-    let mut result = [0.; 6];
-
-    let mut mult = 1.;
-    let mut offset: usize = 0;
-    for index in 1..result.len() {
-        let length = result.len() - index;
-        let end_offset = offset + length;
-        mult *= eps;
-        result[index] = mult * evaluate_polynomial(&coeffs[offset..end_offset], eps);
-        offset += length;
-    }
-
-    result
+    let c1 = eps * evaluate_polynomial(&coeffs[0..5], eps);
+    let eps_2 = eps * eps;
+    let c2 = eps_2 * evaluate_polynomial(&coeffs[5..9], eps);
+    let eps_3 = eps * eps_2;
+    let c3 = eps_3 * evaluate_polynomial(&coeffs[9..12], eps);
+    let eps_4 = eps * eps_3;
+    let c4 = eps_4 * evaluate_polynomial(&coeffs[12..14], eps);
+    let eps_5: f64 = eps * eps_4;
+    let c5 = eps_5 * evaluate_polynomial(&coeffs[14..15], eps);
+    [0.0, c1, c2, c3, c4, c5]
 }
 
 /// Evaluate the following:
