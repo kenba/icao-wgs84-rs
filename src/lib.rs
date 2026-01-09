@@ -347,8 +347,8 @@ pub struct GeodesicSegment<'a> {
     eps: f64,
     /// constant used to convert geodesic/great circle longitudes.
     a3c: f64,
-    /// Start parameter for geodesic/great circle distance differences.
-    b11: Radians,
+    /// Start parameter for geodesic/great circle longitudes.
+    b31: Radians,
     /// A reference to the underlying `Ellipsoid`.
     ellipsoid: &'a Ellipsoid,
 }
@@ -387,9 +387,9 @@ impl<'a> GeodesicSegment<'a> {
         // Calculate the distance to the first Equator crossing
         let sigma1 = Angle::from_y_x(beta.sin().0, beta.cos().0 * azi.cos().0);
 
-        // Calculate eps and c1 for calculating coefficients
+        // Calculate eps and c3 for calculating coefficients
         let eps = ellipsoid.calculate_epsilon(azi0.sin());
-        let c1 = ellipsoid::coefficients::evaluate_coeffs_c1(eps);
+        let c3 = ellipsoid.calculate_c3y(eps);
         Self {
             beta,
             lon,
@@ -400,7 +400,7 @@ impl<'a> GeodesicSegment<'a> {
             half_width,
             eps,
             a3c: ellipsoid.calculate_a3c(azi0.sin(), eps),
-            b11: ellipsoid::coefficients::sin_cos_series(&c1, sigma1),
+            b31: ellipsoid::coefficients::sin_cos_series(&c3, sigma1),
             ellipsoid,
         }
     }
@@ -576,33 +576,20 @@ impl<'a> GeodesicSegment<'a> {
         } else {
             let a1 = ellipsoid::coefficients::evaluate_a1(self.eps) + 1.0;
             let tau12 = Radians(distance.0 / (self.ellipsoid.b().0 * a1));
-            let tau_sum = Angle::from(self.b11 + tau12);
+            let c1 = ellipsoid::coefficients::evaluate_coeffs_c1(self.eps);
+            let b11 = ellipsoid::coefficients::sin_cos_series(&c1, self.sigma1);
+            let tau_sum = Angle::from(b11 + tau12);
             let c1p = ellipsoid::coefficients::evaluate_coeffs_c1p(self.eps);
             let b12 = ellipsoid::coefficients::sin_cos_series(&c1p, self.sigma1 + tau_sum);
 
-            tau12 + b12 + self.b11
+            tau12 + b12 + b11
         }
-    }
-
-    /// Convert a great circle distance in radians on the auxiliary sphere to metres
-    /// on the ellipsoid.
-    /// * `arc_distance` - the great circle distance in radians on the auxiliary sphere.
-    /// * `sigma` the `arc_distance` as an `Angle`.
-    ///
-    /// returns the distance in metres on the ellipsoid.
-    #[must_use]
-    pub fn radians_to_metres(&self, arc_distance: Radians, sigma: Angle) -> Metres {
-        let sigma_sum = self.sigma1 + sigma;
-        let c1 = ellipsoid::coefficients::evaluate_coeffs_c1(self.eps);
-        let b12 = ellipsoid::coefficients::sin_cos_series(&c1, sigma_sum);
-        let a1 = ellipsoid::coefficients::evaluate_a1(self.eps) + 1.0;
-        Metres(self.ellipsoid.b().0 * a1 * (arc_distance + b12 - self.b11).0)
     }
 
     /// Accessor for the length of the `GeodesicSegment` in metres.
     #[must_use]
     pub fn length(&self) -> Metres {
-        self.radians_to_metres(self.arc_length, Angle::from(self.arc_length))
+        geodesic::convert_radians_to_metres(self.beta, self.azi, self.arc_length, self.ellipsoid)
     }
 
     /// Calculate the parametric latitude at the great circle length.
@@ -686,10 +673,9 @@ impl<'a> GeodesicSegment<'a> {
                 );
 
             let c3 = self.ellipsoid.calculate_c3y(self.eps);
-            let b31 = ellipsoid::coefficients::sin_cos_series(&c3, self.sigma1);
             let b32 = ellipsoid::coefficients::sin_cos_series(&c3, sigma_sum);
 
-            omega12 - Angle::from(Radians(self.a3c * (arc_distance.0 + (b32.0 - b31.0))))
+            omega12 - Angle::from(Radians(self.a3c * (arc_distance.0 + (b32.0 - self.b31.0))))
         }
     }
 
@@ -1033,7 +1019,7 @@ impl<'a> GeodesicSegment<'a> {
         let beta = self.arc_beta(atd_angle);
         let alpha = self.arc_azimuth(atd_angle).quarter_turn_ccw();
         (
-            self.radians_to_metres(atd, atd_angle),
+            geodesic::convert_radians_to_metres(self.beta, self.azi, atd, self.ellipsoid),
             geodesic::convert_radians_to_metres(beta, alpha, xtd, self.ellipsoid),
             iterations,
         )
