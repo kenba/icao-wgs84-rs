@@ -30,8 +30,7 @@
 //! [WGS-84](https://via-technology.aero/img/navigation/REF08-Doc9674.pdf)
 //! ellipsoid, see *Figure 1*.
 //!
-//! <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/3/3e/WGS84_mean_Earth_radius.svg/800px-WGS84_mean_Earth_radius.svg.png" width="400">
-//!
+//! <img src="https://upload.wikimedia.org/wikipedia/commons/3/3e/WGS84_mean_Earth_radius.svg" width="400">\
 //! *Figure 1 The WGS-84 Ellipsoid (not to scale)
 //! [Cmglee](https://commons.wikimedia.org/wiki/User:Cmglee), [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0), via Wikimedia Commons*
 //!

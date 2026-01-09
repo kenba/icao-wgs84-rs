@@ -10,8 +10,8 @@ A library for performing geometric calculations on the
 [WGS-84](https://via-technology.aero/img/navigation/REF08-Doc9674.pdf)
 ellipsoid, see *Figure 1*.
 
-![WGS-84 Ellipsoid](https://upload.wikimedia.org/wikipedia/commons/thumb/3/3e/WGS84_mean_Earth_radius.svg/800px-WGS84_mean_Earth_radius.svg.png)\
-*Figure 1 The WGS-84 Ellipsoid (not to scale)  
+![WGS-84 Ellipsoid](https://upload.wikimedia.org/wikipedia/commons/3/3e/WGS84_mean_Earth_radius.svg)\
+*Figure 1 The WGS-84 Ellipsoid (not to scale)
 [Cmglee](https://commons.wikimedia.org/wiki/User:Cmglee), [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0), via Wikimedia Commons*
 
 [WGS-84](https://via-technology.aero/img/navigation/REF08-Doc9674.pdf)
@@ -50,7 +50,7 @@ Like `GeographicLib`, it models geodesic segments as great circle arcs on
 the surface of a unit sphere. However, it also uses vectors to perform
 calculations between geodesic segments.
 
-The `Ellipsoid` class represents an ellipsoid of revolution.  
+The `Ellipsoid` class represents an ellipsoid of revolution.
 The static `WGS84_ELLIPSOID` represents the WGS-84 `Ellipsoid` which is used
 by the `GeodesicSegment` `From` traits to create `GeodesicSegment`s on the WGS-84 `Ellipsoid`.
 
@@ -63,7 +63,7 @@ perform great-circle and vector calculations.
 - [icao_units](https://crates.io/crates/icao-units) - to define `Metres` and
 `NauticalMiles` and perform conversions between them.
 
-![Ellipsoid Class Diagram](docs/images/ellipsoid_class_diagram.svg)  
+![Ellipsoid Class Diagram](docs/images/ellipsoid_class_diagram.svg)
 *Figure 3 Class Diagram*
 
 The library is declared [no_std](https://docs.rust-embedded.org/book/intro/no-std.html)
@@ -100,13 +100,13 @@ Create a `GeodesicSegment` between two positions and then calculate the
 along track and across track distances of a third position relative to the `GeodesicSegment`.
 
 The example is based on this reply from C. F. F. Karney :
-<https://sourceforge.net/p/geographiclib/discussion/1026621/thread/21aaff9f/#8a93>.  
+<https://sourceforge.net/p/geographiclib/discussion/1026621/thread/21aaff9f/#8a93>.
 The expected latitude and longitude are from Karney's reply:
 
 > Final result 54.92853149711691 -21.93729106604878
 
 Note: the across track distance (xtd) is negative because Reyjavik is on the
-right hand side of the `GeodesicSegment`.  
+right hand side of the `GeodesicSegment`.
 Across track distances are:
 
 - positive for positions to the left of the `GeodesicSegment`,
@@ -148,8 +148,8 @@ assert!(is_within_tolerance(
 ));
 ```
 
-Also Note: the example uses 1mm precision to match Karney's result.  
-In practice, precision should be determined from position accuracy.  
+Also Note: the example uses 1mm precision to match Karney's result.
+In practice, precision should be determined from position accuracy.
 Higher precision requires more iterations and therefore takes longer to
 calculate the result.
 
@@ -159,13 +159,13 @@ Create two `GeodesicSegment`s, each between two positions and then calculate the
 distances from the geodesic segment start points to their intersection point.
 
 The example is based on this reply from C. F. F. Karney :
-<https://sourceforge.net/p/geographiclib/discussion/1026621/thread/21aaff9f/#fe0a>  
+<https://sourceforge.net/p/geographiclib/discussion/1026621/thread/21aaff9f/#fe0a>
 The expected latitude and longitude are from Karney's reply:
 
 > Final result 54.7170296089477 -14.56385574430775
 
 Note: Karney's solution requires all 4 positions to be in the same hemisphere
-centered at the intersection point.  
+centered at the intersection point.
 This solution does **not** have that requirement.
 
 ```rust
