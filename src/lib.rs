@@ -60,7 +60,7 @@
 //! and great-circle arcs on a unit sphere, together with 3D vectors to calculate:
 //!
 //! - the length and azimuths of a geodesic segment between two positions;
-//! - the along track and across track distances of a point relative to a geodesic segment;
+//! - the along track and across track distances of a position relative to a geodesic segment;
 //! - and the intersection of two geodesic segments.
 //!
 //! See: [geodesic algorithms](https://via-technology.aero/navigation/geodesic-algorithms/).

@@ -10,8 +10,7 @@ A library for performing geometric calculations on the
 [WGS-84](https://via-technology.aero/img/navigation/REF08-Doc9674.pdf)
 ellipsoid, see *Figure 1*.
 
-<img src="https://upload.wikimedia.org/wikipedia/commons/thumb/3/3e/WGS84_mean_Earth_radius.svg/800px-WGS84_mean_Earth_radius.svg.png" width="400">
-
+![WGS-84 Ellipsoid](https://upload.wikimedia.org/wikipedia/commons/thumb/3/3e/WGS84_mean_Earth_radius.svg/800px-WGS84_mean_Earth_radius.svg.png)\
 *Figure 1 The WGS-84 Ellipsoid (not to scale)  
 [Cmglee](https://commons.wikimedia.org/wiki/User:Cmglee), [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0), via Wikimedia Commons*
 
@@ -38,7 +37,7 @@ This library uses the correspondence between geodesic segments on an ellipsoid
 and great-circle arcs on a unit sphere, together with 3D vectors to calculate:
 
 - the length and azimuths of a geodesic segment between two positions;
-- the along track and across track distances of a point relative to a geodesic segment;
+- the along track and across track distances of a position relative to a geodesic segment;
 - and the intersection of two geodesic segments.
 
 See: [geodesic algorithms](https://via-technology.aero/navigation/geodesic-algorithms/).
