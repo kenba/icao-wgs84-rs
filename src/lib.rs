@@ -1104,8 +1104,12 @@ pub fn calculate_intersection_distances(
     precision: Metres,
 ) -> (Radians, Radians) {
     let precision = Radians(precision.0 / g_0.ellipsoid().a().0);
-    let (distance1, distance2, _, _) =
-        intersection::calculate_arc_reference_distances_and_angle(g_0, g_1, precision);
+    let (distance1, distance2, _, _) = intersection::calculate_arc_reference_distances_and_angle(
+        g_0,
+        g_1,
+        precision,
+        precision.0.sin(),
+    );
     (
         distance1 + g_0.arc_length().half(),
         distance2 + g_1.arc_length().half(),
@@ -1154,7 +1158,12 @@ pub fn calculate_intersection_point(
 ) -> Option<LatLong> {
     let precision = Radians(precision.0 / g_0.ellipsoid().a().0);
     let (distance1, distance2, angle, _) =
-        intersection::calculate_arc_reference_distances_and_angle(g_0, g_1, precision);
+        intersection::calculate_arc_reference_distances_and_angle(
+            g_0,
+            g_1,
+            precision,
+            precision.0.sin(),
+        );
 
     let segments_are_coincident = angle.sin().0 == 0.0;
     let segments_intersect_or_overlap = if segments_are_coincident {
