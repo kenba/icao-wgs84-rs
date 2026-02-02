@@ -1,4 +1,4 @@
-// Copyright (c) 2024-2025 Ken Barker
+// Copyright (c) 2024-2026 Ken Barker
 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"),
@@ -761,6 +761,26 @@ mod tests {
     }
 
     #[test]
+    fn test_calculate_azimuths_arc_length_equator_not_antipodal() {
+        let latlon1 = LatLong::new(Degrees(0.0), Degrees(0.0));
+        let latlon2 = LatLong::new(Degrees(0.0), Degrees(179.0));
+
+        let tolerance = Radians(great_circle::MIN_VALUE);
+
+        // Northbound geodesic segment along the equator
+        let result = calculate_azimuths_arc_length(&latlon1, &latlon2, tolerance, &WGS84_ELLIPSOID);
+        assert_eq!(90.0, Degrees::from(result.0).0);
+        assert_eq!(3.1346492464937157, (result.1).0);
+        assert_eq!(90.0, Degrees::from(result.2).0);
+        assert_eq!(0, result.3);
+
+        // Compare distance with GeographicLib value
+        let distance_m =
+            convert_radians_to_metres(Angle::default(), result.0, result.1, &WGS84_ELLIPSOID);
+        assert_eq!(19926188.851995833, distance_m.0);
+    }
+
+    #[test]
     fn test_calculate_azimuths_arc_length_equator_nearly_antipodal() {
         let latlon1 = LatLong::new(Degrees(0.0), Degrees(0.0));
         let latlon2 = LatLong::new(Degrees(0.0), Degrees(179.5));
@@ -773,7 +793,13 @@ mod tests {
         assert_eq!(core::f64::consts::PI, (result.1).0);
         assert_eq!(124.03350485984134, Degrees::from(result.2).0);
         assert_eq!(3, result.3);
+
+        // Compare distance with GeographicLib value
+        let distance_m =
+            convert_radians_to_metres(Angle::default(), result.0, result.1, &WGS84_ELLIPSOID);
+        assert_eq!(19980861.908890963, distance_m.0);
     }
+
     #[test]
     fn test_calculate_azimuths_arc_length_normal_01() {
         // North West bound, straddle Equator
