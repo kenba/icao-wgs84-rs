@@ -202,8 +202,8 @@ pub fn calculate_arc_reference_distances_and_angle(
             sq_sin_max_coincident_angle,
         );
 
-        let angle = g_1.arc_azimuth(Angle::from(distance_1))
-            - g_0.arc_azimuth(Angle::from(distance_0)).abs();
+        let angle =
+            g_1.arc_azimuth(Angle::from(distance_1)) - g_0.arc_azimuth(Angle::from(distance_0));
 
         // return distances to the closest geodesic intersection from arc mid points
         (
@@ -220,11 +220,11 @@ pub fn calculate_arc_reference_distances_and_angle(
         let distance_0 = vector::calculate_great_circle_atd(&mid_point_0, &pole_0, &c);
         let distance_1 = vector::calculate_great_circle_atd(&mid_point_1, &pole_1, &c);
 
-        let angle = g_1.arc_azimuth(Angle::from(distance_1))
-            - g_0.arc_azimuth(Angle::from(distance_0)).abs();
+        let angle =
+            g_1.arc_azimuth(Angle::from(distance_1)) - g_0.arc_azimuth(Angle::from(distance_0));
 
-        // return distances to the normalized centroid from arc mid points
-        (distance_0, distance_1, angle, 0)
+        // return distances to the normalized centriod from arc mid points
+        (distance_0, distance_1, angle.abs(), 0)
     }
 }
 
