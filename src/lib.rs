@@ -586,10 +586,20 @@ impl<'a> GeodesicSegment<'a> {
         }
     }
 
+    /// Convert a great circle distance in radians on the auxiliary sphere to metres
+    /// on the ellipsoid.
+    /// * `arc_distance` - the great circle distance in radians on the auxiliary sphere.
+    ///
+    /// returns the distance in metres on the ellipsoid.
+    #[must_use]
+    pub fn radians_to_metres(&self, arc_distance: Radians) -> Metres {
+        geodesic::convert_radians_to_metres(self.beta, self.azi, arc_distance, self.ellipsoid)
+    }
+
     /// Accessor for the length of the `GeodesicSegment` in metres.
     #[must_use]
     pub fn length(&self) -> Metres {
-        geodesic::convert_radians_to_metres(self.beta, self.azi, self.arc_length, self.ellipsoid)
+        self.radians_to_metres(self.arc_length)
     }
 
     /// Calculate the parametric latitude at the great circle length.
