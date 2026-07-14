@@ -166,7 +166,7 @@ pub fn calculate_arc_reference_distances_and_angle(
     sin_max_coincident_angle: f64,
 ) -> (Radians, Radians, Angle, u32) {
     // The Geodesics MUST be on the same `Ellipsoid`
-    assert!(g_0.ellipsoid() == g_1.ellipsoid());
+    assert_eq!(g_0.ellipsoid(), g_1.ellipsoid());
 
     if g_0 == g_1 {
         return (Radians(0.0), Radians(0.0), Angle::default(), 0);
