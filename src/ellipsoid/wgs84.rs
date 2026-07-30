@@ -1,4 +1,4 @@
-// Copyright (c) 2024 Ken Barker
+// Copyright (c) 2024-2026 Ken Barker
 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"),
@@ -28,7 +28,7 @@ use crate::Metres;
 
 /// The WGS 84 Semimajor axis measured in metres.
 /// This is the radius at the equator.
-pub const A: Metres = Metres(6_378_137.0);
+pub const A: Metres<f64> = Metres(6_378_137.0);
 
 /// The WGS 84 flattening, a ratio.
 /// This is the flattening of the ellipsoid at the poles.

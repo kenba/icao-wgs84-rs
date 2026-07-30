@@ -226,14 +226,14 @@ pub fn evaluate_coeffs_c3y(coeffs: &[f64], eps: f64) -> [f64; 6] {
 /// * `coeffs` - the polynomial coefficients.
 /// * `angle` - the Angle.
 #[must_use]
-pub fn sin_cos_series(coeffs: &[f64], angle: Angle) -> Radians {
+pub fn sin_cos_series(coeffs: &[f64], angle: Angle<f64>) -> Radians<f64> {
     let angle2x = angle.double();
 
     if angle2x.sin().abs().0 < f64::EPSILON {
         Radians(0.0)
     } else {
         // the Clenshaw ak(theta) parameter, beta(k) = -1
-        let ar = 2.0 * angle2x.cos().0;
+        let ar: f64 = 2.0 * angle2x.cos().0;
 
         let mut index = coeffs.len() - 1;
         let coeffs_length_is_odd = 0 != (index & 1);

@@ -1,4 +1,4 @@
-// Copyright (c) 2024 Ken Barker
+// Copyright (c) 2024-2026 Ken Barker
 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"),
@@ -38,11 +38,11 @@ use angle_sc::{Angle, trig};
 /// use icao_wgs84::ellipsoid::{calculate_minor_axis, wgs84};
 ///
 /// // The WGS 84 Semiminor axis measured in metres.
-/// let b : Metres = Metres(6_356_752.314_245_179);
+/// let b : Metres<f64> = Metres(6_356_752.314_245_179);
 /// assert_eq!(b, calculate_minor_axis(wgs84::A, wgs84::F));
 /// ```
 #[must_use]
-pub fn calculate_minor_axis(a: Metres, f: f64) -> Metres {
+pub fn calculate_minor_axis(a: Metres<f64>, f: f64) -> Metres<f64> {
     Metres(a.0 * (1.0 - f))
 }
 
@@ -98,7 +98,7 @@ pub fn calculate_3rd_flattening(f: f64) -> f64 {
 /// * `clairaut` - Clairaut's constant.
 /// * `ep_2` - the square of the second Eccentricity of the ellipsoid.
 #[must_use]
-pub fn calculate_epsilon(clairaut: trig::UnitNegRange, ep_2: f64) -> f64 {
+pub fn calculate_epsilon(clairaut: trig::UnitNegRange<f64>, ep_2: f64) -> f64 {
     // Clairaut's constant is sin alpha0; sq_cos_alpha0 is 1 - clairaut^2
     let sq_cos_alpha0 = (1.0 - clairaut.0) * (1.0 + clairaut.0);
     let k2 = ep_2 * sq_cos_alpha0; // square of Karney equation 9
@@ -111,7 +111,7 @@ pub fn calculate_epsilon(clairaut: trig::UnitNegRange, ep_2: f64) -> f64 {
 /// * `lat` - the `geodetic` Latitude
 /// * `one_minus_f` - one minus the flattening ratio.
 #[must_use]
-pub fn calculate_parametric_latitude(lat: Angle, one_minus_f: f64) -> Angle {
+pub fn calculate_parametric_latitude(lat: Angle<f64>, one_minus_f: f64) -> Angle<f64> {
     Angle::from_y_x(one_minus_f * lat.sin().0, lat.cos().0)
 }
 
@@ -120,7 +120,7 @@ pub fn calculate_parametric_latitude(lat: Angle, one_minus_f: f64) -> Angle {
 /// * `lat` - the `parametric` Latitude
 /// * `one_minus_f` - one minus the flattening ratio.
 #[must_use]
-pub fn calculate_geodetic_latitude(lat: Angle, one_minus_f: f64) -> Angle {
+pub fn calculate_geodetic_latitude(lat: Angle<f64>, one_minus_f: f64) -> Angle<f64> {
     Angle::from_y_x(lat.sin().0 / one_minus_f, lat.cos().0)
 }
 

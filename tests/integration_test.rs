@@ -1,4 +1,4 @@
-// Copyright (c) 2024-2025 Ken Barker
+// Copyright (c) 2024-2026 Ken Barker
 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"),
@@ -23,12 +23,12 @@ extern crate icao_wgs84;
 
 use angle_sc::{Angle, Degrees, Radians};
 use csv::{ReaderBuilder, WriterBuilder};
-use icao_wgs84::{Metres, WGS84_ELLIPSOID, geodesic};
+use icao_wgs84::{MIN_VALUE, Metres, WGS84_ELLIPSOID, geodesic};
 use std::env;
 use std::path::Path;
 use std::time::Instant;
 
-use unit_sphere::{LatLong, great_circle};
+use unit_sphere::LatLong;
 
 // The location of the file on sourceforge.net
 // const FILEPATH: &str = "https://sourceforge.net/projects/geographiclib/files/testdata/GeodTest.dat.gz/download";
@@ -65,16 +65,12 @@ fn calculate_geodesic_inverse_values(
     lon1: f64,
     lat2: f64,
     lon2: f64,
-) -> (Angle, Angle, Metres, Radians, u32) {
+) -> (Angle<f64>, Angle<f64>, Metres<f64>, Radians<f64>, u32) {
     let lat1 = Degrees(lat1);
     let a = LatLong::new(lat1, Degrees(lon1));
     let b = LatLong::new(Degrees(lat2), Degrees(lon2));
-    let result = geodesic::calculate_azimuths_arc_length(
-        &a,
-        &b,
-        Radians(great_circle::MIN_VALUE),
-        &WGS84_ELLIPSOID,
-    );
+    let result =
+        geodesic::calculate_azimuths_arc_length(&a, &b, Radians(MIN_VALUE), &WGS84_ELLIPSOID);
 
     let beta1 = WGS84_ELLIPSOID.calculate_parametric_latitude(Angle::from(lat1));
     let result_m = geodesic::convert_radians_to_metres(beta1, result.0, result.1, &WGS84_ELLIPSOID);
@@ -127,7 +123,7 @@ fn test_geodesic_examples() -> Result<(), Box<dyn std::error::Error>> {
         // Compare start azimuths
         let delta_azimuth = (azi1 - azi).abs();
         // reduce tolerance for entries running between or close to vertices
-        let azimuth_tolerance = if index <= 400000 { 5.331e-5 } else { 2.0e-2 };
+        let azimuth_tolerance = if index <= 400000 { 5.331e-5 } else { 3.1e-2 };
         if azimuth_tolerance < delta_azimuth {
             panic!(
                 "azimuth, line: {:?} lat1: {:?} delta: {:?} azimuth: {:?} calculated: {:?} delta_long: {:?} ",

@@ -44,7 +44,7 @@
 //! distances using great-circles on the unit sphere at the calculated
 //! intersection distances.
 
-use crate::{Angle, GeodesicSegment, Radians, geodesic};
+use crate::{Angle, GeodesicSegment, MIN_VALUE, Radians, geodesic};
 use angle_sc::max;
 use unit_sphere::{great_circle, vector};
 
@@ -66,7 +66,7 @@ pub fn geodesics_are_coincident(
         g_0.beta(),
         g_1.beta(),
         g_1.lon() - g_0.lon(),
-        Radians(great_circle::MIN_VALUE),
+        Radians(MIN_VALUE),
         g_0.ellipsoid(),
     );
 
@@ -94,11 +94,11 @@ fn find_geodesic_intersection_distances(
     g_0: &GeodesicSegment,
     g_1: &GeodesicSegment,
     use_antipodal_intersection: bool,
-    distance_0: Radians,
-    distance_1: Radians,
-    precision: Radians,
+    distance_0: Radians<f64>,
+    distance_1: Radians<f64>,
+    precision: Radians<f64>,
     sq_sin_max_coincident_angle: f64,
-) -> (Radians, Radians, u32) {
+) -> (Radians<f64>, Radians<f64>, u32) {
     const MAX_ITERATIONS: u32 = 10;
 
     let sq_precision = great_circle::gc2e_distance(precision).powi(2);
@@ -162,9 +162,11 @@ fn find_geodesic_intersection_distances(
 pub fn calculate_arc_reference_distances_and_angle(
     g_0: &GeodesicSegment,
     g_1: &GeodesicSegment,
-    precision: Radians,
+    precision: Radians<f64>,
     sin_max_coincident_angle: f64,
-) -> (Radians, Radians, Angle, u32) {
+) -> (Radians<f64>, Radians<f64>, Angle<f64>, u32) {
+    const MIN_SIN_ANGLE: f64 = (vector::MIN_SIN_MULTIPLE as f64) * f64::EPSILON;
+
     // The Geodesics MUST be on the same `Ellipsoid`
     assert_eq!(g_0.ellipsoid(), g_1.ellipsoid());
 
@@ -172,7 +174,7 @@ pub fn calculate_arc_reference_distances_and_angle(
         return (Radians(0.0), Radians(0.0), Angle::default(), 0);
     }
 
-    let sin_max_angle = max(sin_max_coincident_angle, vector::MIN_SIN_ANGLE);
+    let sin_max_angle = max(sin_max_coincident_angle, MIN_SIN_ANGLE);
     let sq_sin_max_coincident_angle = sin_max_angle * sin_max_angle;
 
     let half_length_0 = g_0.arc_length().half();

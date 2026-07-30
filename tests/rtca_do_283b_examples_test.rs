@@ -1,4 +1,4 @@
-// Copyright (c) 2024-2025 Ken Barker
+// Copyright (c) 2024-2026 Ken Barker
 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"),
@@ -22,8 +22,8 @@ extern crate icao_wgs84;
 
 use angle_sc::{Angle, Degrees, Radians};
 use csv;
-use icao_wgs84::{Metres, WGS84_ELLIPSOID, geodesic};
-use unit_sphere::{LatLong, great_circle};
+use icao_wgs84::{MIN_VALUE, Metres, WGS84_ELLIPSOID, geodesic};
+use unit_sphere::LatLong;
 
 /// Calculate the geodesic values for the given start and end point latitudes and longitudes.
 ///
@@ -33,16 +33,12 @@ fn calculate_geodesic_inverse_values(
     lon1: f64,
     lat2: f64,
     lon2: f64,
-) -> (Angle, Angle, Metres, Radians, u32) {
+) -> (Angle<f64>, Angle<f64>, Metres<f64>, Radians<f64>, u32) {
     let lat1 = Degrees(lat1);
     let a = LatLong::new(lat1, Degrees(lon1));
     let b = LatLong::new(Degrees(lat2), Degrees(lon2));
-    let result = geodesic::calculate_azimuths_arc_length(
-        &a,
-        &b,
-        Radians(great_circle::MIN_VALUE),
-        &WGS84_ELLIPSOID,
-    );
+    let result =
+        geodesic::calculate_azimuths_arc_length(&a, &b, Radians(MIN_VALUE), &WGS84_ELLIPSOID);
 
     let beta1 = WGS84_ELLIPSOID.calculate_parametric_latitude(Angle::from(lat1));
     let result_m = geodesic::convert_radians_to_metres(beta1, result.0, result.1, &WGS84_ELLIPSOID);
