@@ -69,6 +69,9 @@ perform great-circle and vector calculations.
 The library is declared [no_std](https://docs.rust-embedded.org/book/intro/no-std.html)
 so it can be used in embedded applications.
 
+This version of the library uses generic versions of the [angle-sc](https://crates.io/crates/angle-sc), [icao-units](https://crates.io/crates/icao-units) and [unit-sphere](https://crates.io/crates/unit-sphere) libraries.\
+The last non-generic version is `1.0.2`, where all types are based on `f64`.
+
 ## Examples
 
 ### Calculate geodesic initial azimuths and length
