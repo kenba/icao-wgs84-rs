@@ -174,7 +174,7 @@ pub fn evaluate_coeffs_c3x(n: f64) -> [f64; 15] {
 /// * `coeffs` - the polynomial coefficients.
 /// * `x` - the variable.
 #[must_use]
-fn evaluate_2_coeffs(coeffs: &[f64], x: f64) -> f64 {
+const fn evaluate_2_coeffs(coeffs: &[f64], x: f64) -> f64 {
     x.mul_add(coeffs[1], coeffs[0])
 }
 
