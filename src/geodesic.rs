@@ -28,7 +28,6 @@
 
 use crate::{Ellipsoid, Metres, ellipsoid};
 use angle_sc::{Angle, Radians, trig, trig::UnitNegRange};
-use core::f64;
 use unit_sphere::{LatLong, great_circle};
 
 /// Estimate omega12 by solving the astroid problem.
@@ -322,7 +321,7 @@ fn find_azimuth_length_newtons_method(
         // clamp to range 0 to Pi
         sigma12_rad = if sigma12.sin().0.is_sign_negative() {
             if sigma12.cos().0.is_sign_negative() {
-                Radians(f64::consts::PI)
+                Radians(core::f64::consts::PI)
             } else {
                 Radians(0.0)
             }
