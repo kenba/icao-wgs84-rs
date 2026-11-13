@@ -567,8 +567,6 @@ pub fn convert_radians_to_metres(
 
 #[cfg(test)]
 mod tests {
-    use core::f64;
-
     use super::*;
     use crate::{GeodesicSegment, MIN_VALUE, WGS84_ELLIPSOID};
     use angle_sc::{Degrees, is_within_tolerance};
@@ -644,7 +642,7 @@ mod tests {
         let lam12_30_90 = delta_omega12(
             clairaut_30_90,
             eps_30_90,
-            Radians(std::f64::consts::FRAC_PI_2),
+            Radians(core::f64::consts::FRAC_PI_2),
             Angle::from_y_x(0.0, 1.0),
             Angle::from_y_x(1.0, 0.0),
             &WGS84_ELLIPSOID,
@@ -657,7 +655,7 @@ mod tests {
         let lam12_45_90 = delta_omega12(
             clairaut_45_90,
             eps_45_90,
-            Radians(std::f64::consts::FRAC_PI_2),
+            Radians(core::f64::consts::FRAC_PI_2),
             Angle::from_y_x(0.0, 1.0),
             Angle::from_y_x(1.0, 0.0),
             &WGS84_ELLIPSOID,
@@ -670,7 +668,7 @@ mod tests {
         let lam12_60_90 = delta_omega12(
             clairaut_60_90,
             eps_60_90,
-            Radians(std::f64::consts::FRAC_PI_2),
+            Radians(core::f64::consts::FRAC_PI_2),
             Angle::from_y_x(0.0, 1.0),
             Angle::from_y_x(1.0, 0.0),
             &WGS84_ELLIPSOID,
@@ -1073,7 +1071,7 @@ mod tests {
             calculate_azimuths_arc_length(&latlon1, &latlon2, Radians(MIN_VALUE), &WGS84_ELLIPSOID);
 
         assert_eq!(0.0, Degrees::from(result.0).0);
-        assert_eq!(f64::consts::PI, (result.1).0);
+        assert_eq!(core::f64::consts::PI, (result.1).0);
         assert_eq!(180.0, Degrees::from(result.2).0);
         assert_eq!(0, result.3);
 
@@ -1096,7 +1094,7 @@ mod tests {
             calculate_azimuths_arc_length(&latlon1, &latlon2, Radians(MIN_VALUE), &WGS84_ELLIPSOID);
 
         assert_eq!(1.105477653395756, Degrees::from(result.0).0);
-        assert_eq!(f64::consts::PI, (result.1).0);
+        assert_eq!(core::f64::consts::PI, (result.1).0);
         assert_eq!(178.89452234660425, Degrees::from(result.2).0);
         assert_eq!(3, result.3);
 
@@ -1119,7 +1117,7 @@ mod tests {
             calculate_azimuths_arc_length(&latlon1, &latlon2, Radians(MIN_VALUE), &WGS84_ELLIPSOID);
 
         assert_eq!(74.60015893698754, Degrees::from(result.0).0);
-        assert_eq!(f64::consts::PI, (result.1).0);
+        assert_eq!(core::f64::consts::PI, (result.1).0);
         assert_eq!(105.39984106301246, Degrees::from(result.2).0);
         assert_eq!(3, result.3);
 
